@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { auth, onAuthStateChanged, signOut, db, doc, getDoc } from '../lib/firebase';
+import { auth, onAuthStateChanged, signOut, db, doc, onSnapshot } from '../lib/firebase';
 
 export function useAuth() {
   const [user, setUser] = useState(null);
@@ -8,30 +8,40 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+    let profileUnsub = null;
+
+    const authUnsub = onAuthStateChanged(auth, (firebaseUser) => {
+      if (profileUnsub) {
+        profileUnsub();
+        profileUnsub = null;
+      }
+
       if (firebaseUser) {
         setUser(firebaseUser);
-        try {
-          const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
+        // Real-time listener for user profile document
+        profileUnsub = onSnapshot(doc(db, 'users', firebaseUser.uid), (snap) => {
           if (snap.exists()) {
             const data = snap.data();
-            setRole(data.role);
+            setRole(data.role || null);
             setProfile(data);
-          } else {
-            const tokenResult = await firebaseUser.getIdTokenResult();
-            setRole(tokenResult.claims.role || null);
           }
-        } catch (err) {
-          console.error('[useAuth] profile fetch failed:', err);
-        }
+          setLoading(false);
+        }, (err) => {
+          console.warn('[useAuth] profile snapshot warning:', err);
+          setLoading(false);
+        });
       } else {
         setUser(null);
         setRole(null);
         setProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
-    return () => unsub();
+
+    return () => {
+      authUnsub();
+      if (profileUnsub) profileUnsub();
+    };
   }, []);
 
   const logout = useCallback(async () => {
