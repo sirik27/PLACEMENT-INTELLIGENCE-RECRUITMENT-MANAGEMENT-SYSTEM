@@ -244,7 +244,7 @@ export default function StudentJobs() {
               <div className="space-y-2">
                 <div className="p-3 rounded-xl flex justify-between text-xs" style={{ background: 'rgba(2,6,23,0.5)', border: '1px solid var(--border-default)' }}>
                   <span className="text-muted">Academic Cutoff Required: {matchAnalysisDrive.cutoff} CGPA</span>
-                  <span className="badge badge-success">✓ Eligible ({profile?.cgpa || '8.4'} CGPA)</span>
+                  <span className="badge badge-success">✓ Eligible ({profile?.cgpa ? `${profile.cgpa} CGPA` : 'Profile Registered'})</span>
                 </div>
                 <div className="p-3 rounded-xl flex justify-between text-xs" style={{ background: 'rgba(2,6,23,0.5)', border: '1px solid var(--border-default)' }}>
                   <span className="text-muted">Required Skills Match: 3/4 Matched</span>

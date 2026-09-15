@@ -11,8 +11,9 @@ export default function StudentPassport() {
   const rollNo = profile?.rollNo || profile?.rollNumber || 'N/A';
   const branch = profile?.department || profile?.branch || (rollNo !== 'N/A' ? getBranchFromRollNo(rollNo) : 'CSE');
   const section = profile?.classSection || profile?.sec || (rollNo !== 'N/A' ? getSectionFromRollNo(rollNo) : 'A');
-  const cgpa = profile?.cgpa ?? '—';
-  const readiness = profile?.readinessScore ?? 0.75;
+  const cgpa = profile?.cgpa ?? 0;
+  const rawReadiness = profile?.readinessScore ?? (cgpa > 0 ? (cgpa / 10) * 0.8 : 0);
+  const readiness = Math.min(1.0, rawReadiness);
   const verifiedSkills = profile?.verifiedSkills || profile?.skills || [];
 
   const qrPayload = JSON.stringify({

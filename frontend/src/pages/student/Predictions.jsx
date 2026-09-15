@@ -53,14 +53,14 @@ function AnimatedRing({ value, size = 180, strokeWidth = 10 }) {
 export default function StudentPredictions() {
   const { profile } = useAuth();
 
-  const cgpa = profile?.cgpa || 8.42;
-  const cgpaScore = cgpa > 0 ? Math.min(100, Math.round((cgpa / 10) * 100)) : 84;
-  const aptScore = profile?.aptitudeScore || (profile?.aptitudePassed ? 85 : 78);
-  const codingScore = profile?.codingScore || profile?.technicalScore || (profile?.qualifiedForTechnical ? 88 : 82);
-  const studentSkills = profile?.skills || profile?.acquiredSkills || ['Python', 'SQL', 'React'];
-  const domainScore = Math.min(100, Math.round((studentSkills.length / 6) * 100)) || 80;
+  const cgpa = profile?.cgpa || 0;
+  const cgpaScore = cgpa > 0 ? Math.min(100, Math.round((cgpa / 10) * 100)) : 0;
+  const aptScore = profile?.aptitudeScore || (profile?.aptitudeCompleted ? (profile.aptitudePassed ? 100 : 40) : 0);
+  const codingScore = profile?.codingScore || profile?.technicalScore || (profile?.technicalCompleted ? (profile.technicalPassed ? 100 : 40) : 0);
+  const studentSkills = profile?.skills || profile?.acquiredSkills || [];
+  const domainScore = studentSkills.length > 0 ? Math.min(100, Math.round((studentSkills.length / 6) * 100)) : 0;
   const readiness = Math.round((cgpaScore * 0.30) + (aptScore * 0.25) + (codingScore * 0.25) + (domainScore * 0.20));
-  const offerProbability = Math.min(98, Math.max(15, Math.round(readiness * 1.1)));
+  const offerProbability = readiness > 0 ? Math.min(98, Math.max(10, Math.round(readiness * 1.1))) : 0;
 
   const factors = [
     { label: 'Academic CGPA', value: cgpaScore, positive: cgpaScore >= 75, desc: `${cgpa} / 10.0` },

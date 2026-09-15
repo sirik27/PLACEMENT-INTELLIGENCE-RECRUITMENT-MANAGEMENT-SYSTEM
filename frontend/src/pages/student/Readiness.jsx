@@ -4,14 +4,14 @@ import { Link } from 'react-router-dom';
 export default function StudentReadiness() {
   const { profile } = useAuth();
 
-  const rawCgpa = profile?.cgpa || 8.42;
-  const cgpaScore = rawCgpa > 0 ? Math.min(100, Math.round((rawCgpa / 10) * 100)) : 84;
+  const rawCgpa = profile?.cgpa || 0;
+  const cgpaScore = rawCgpa > 0 ? Math.min(100, Math.round((rawCgpa / 10) * 100)) : 0;
   
-  const aptScore = profile?.aptitudeScore || (profile?.aptitudePassed ? 85 : 78);
-  const codingScore = profile?.codingScore || profile?.technicalScore || (profile?.qualifiedForTechnical ? 88 : 82);
+  const aptScore = profile?.aptitudeScore || (profile?.aptitudeCompleted ? (profile.aptitudePassed ? 100 : 40) : 0);
+  const codingScore = profile?.codingScore || profile?.technicalScore || (profile?.technicalCompleted ? (profile.technicalPassed ? 100 : 40) : 0);
   
-  const studentSkills = profile?.skills || profile?.acquiredSkills || ['Data Structures', 'Python', 'React', 'SQL'];
-  const domainScore = Math.min(100, Math.round((studentSkills.length / 6) * 100)) || 80;
+  const studentSkills = profile?.skills || profile?.acquiredSkills || [];
+  const domainScore = studentSkills.length > 0 ? Math.min(100, Math.round((studentSkills.length / 6) * 100)) : 0;
 
   const readiness = Math.round(
     (cgpaScore * 0.30) + (aptScore * 0.25) + (codingScore * 0.25) + (domainScore * 0.20)

@@ -69,8 +69,8 @@ export default function StudentDashboard() {
           date: d.data().createdAt ? new Date(d.data().createdAt.seconds * 1000) : new Date(),
         }));
         setDrives(fsDrives);
-        let appliedCount = 0, offerCount = 0;
-        const userActivities = [], myDriveIds = [];
+        let appliedCount = 0, offerCount = 0, interviewCount = 0;
+        const userActivities = [], myDriveIds = [], myAppliedDrives = [];
         for (const drive of fsDrives) {
           try {
             const appSnap = await getDocs(collection(db, 'drives', drive.id, 'applications'));
@@ -78,19 +78,39 @@ export default function StudentDashboard() {
               const myApp = appSnap.docs.find(doc => doc.id === rollNo || doc.data().rollNo === rollNo || doc.data().email === profile?.email);
               if (myApp) {
                 appliedCount++; myDriveIds.push(drive.id);
+                myAppliedDrives.push(drive);
                 userActivities.push({ text: `Applied to ${drive.company} — ${drive.role}`, time: 'Recently', type: 'application' });
-                if ((myApp.data().status || '').toLowerCase().includes('offer') || (myApp.data().status || '').toLowerCase().includes('selected')) offerCount++;
+                const appStatus = (myApp.data().status || '').toLowerCase();
+                if (appStatus.includes('offer') || appStatus.includes('selected') || appStatus.includes('placed')) offerCount++;
+                if (appStatus.includes('interview') || appStatus.includes('shortlisted') || appStatus.includes('qualified') || appStatus.includes('assessment')) interviewCount++;
               }
             }
           } catch { /* proceed */ }
         }
         setAppliedDriveIds(myDriveIds);
+        
+        // Pure dynamic calculation based on real candidate data
+        const cgpaVal = profile?.cgpa || 0;
+        const cgpaScore = cgpaVal > 0 ? (cgpaVal / 10) * 100 : 0;
+        const aptVal = profile?.aptitudeScore || (profile?.aptitudeCompleted ? (profile.aptitudePassed ? 100 : 40) : 0);
+        const techVal = profile?.technicalScore || profile?.codingScore || (profile?.technicalCompleted ? (profile.technicalPassed ? 100 : 40) : 0);
         const skillsCount = (profile?.skills || profile?.acquiredSkills || []).length;
-        const calcReadiness = Math.min(0.95, 0.50 + (skillsCount * 0.05) + (profile?.cgpa ? (profile.cgpa / 10) * 0.25 : 0.20));
-        setStats({ readiness: calcReadiness, apps: appliedCount, offers: offerCount, interviews: Math.max(1, appliedCount) });
+        const domainVal = skillsCount > 0 ? Math.min(100, skillsCount * 20) : 0;
+
+        let calcReadiness = 0;
+        if (cgpaScore > 0 || aptVal > 0 || techVal > 0 || domainVal > 0) {
+          calcReadiness = Math.min(0.98, ((cgpaScore * 0.30) + (aptVal * 0.25) + (techVal * 0.25) + (domainVal * 0.20)) / 100);
+        }
+
+        // Live interviews count from real applications + qualified screening tests
+        const totalInterviews = interviewCount + (profile?.qualifiedForRound2 || profile?.qualifiedForRound3 ? 1 : 0);
+
+        setStats({ readiness: calcReadiness, apps: appliedCount, offers: offerCount, interviews: totalInterviews });
         setActivity(userActivities.length > 0 ? userActivities : [{ text: 'Profile Initialized & Registered for Campus Placements', time: 'Active', type: 'system' }]);
       } else {
-        setDrives([]); setStats({ readiness: 0.75, apps: 0, offers: 0, interviews: 0 });
+        const cgpaVal = profile?.cgpa || 0;
+        const calcReadiness = cgpaVal > 0 ? Math.min(0.95, (cgpaVal / 10) * 0.8) : 0;
+        setDrives([]); setStats({ readiness: calcReadiness, apps: 0, offers: 0, interviews: 0 });
         setActivity([{ text: 'No active placement drives announced yet.', time: 'System', type: 'system' }]);
       }
       setLoading(false);
@@ -120,12 +140,35 @@ export default function StudentDashboard() {
   };
 
   const readinessPct = (stats.readiness * 100).toFixed(0);
-  const upcomingActivities = [
-    { label: 'Aptitude Test — TCS (Online)', date: 'Scheduled', icon: <CalendarIcon />, color: '#818cf8' },
-    { label: 'Technical Interview — Infosys', date: 'Upcoming', icon: <ZapIcon />, color: '#38bdf8' },
-    { label: 'HR Round — TCS (Offline)', date: 'Pending', icon: <CalendarIcon />, color: '#fbbf24' },
-    { label: 'Mock Interview (Training)', date: 'Available', icon: <ZapIcon />, color: '#34d399' },
-  ];
+
+  // Dynamically constructed upcoming activities from live exams and candidate applications
+  const upcomingActivities = [];
+  if (liveExams.length > 0) {
+    liveExams.forEach(ex => {
+      upcomingActivities.push({
+        label: `${ex.driveCompany} — ${ex.title || (ex.examType === 'technical' ? 'Round 2 Technical Coding' : 'Round 1 Aptitude Test')}`,
+        date: 'Proctored Screening Active',
+        icon: <ZapIcon />,
+        color: '#818cf8'
+      });
+    });
+  }
+  if (profile?.qualifiedForRound2 && !profile?.technicalCompleted) {
+    upcomingActivities.push({
+      label: `Round 2 Technical Coding Sandbox — Qualified`,
+      date: 'Access Granted',
+      icon: <ZapIcon />,
+      color: '#fbbf24'
+    });
+  }
+  if (profile?.qualifiedForRound3) {
+    upcomingActivities.push({
+      label: `Round 3 Interview Call — Qualified`,
+      date: 'Cleared Screening',
+      icon: <CalendarIcon />,
+      color: '#34d399'
+    });
+  }
 
   const metrics = [
     { label: 'Readiness Score', value: `${readinessPct}%`, icon: <GaugeIcon />, bg: 'rgba(99,102,241,0.1)', color: '#818cf8', glow: 'rgba(99,102,241,0.12)', accent: 'linear-gradient(135deg, #6366f1, #818cf8)' },
@@ -353,17 +396,21 @@ export default function StudentDashboard() {
         <div className="glass-card" id="upcoming-activities">
           <h3 className="mb-4">Upcoming Activities</h3>
           <div className="timeline">
-            {upcomingActivities.map((a, i) => (
-              <div key={i} className="timeline-item">
-                <div className="flex items-center gap-3">
-                  <div style={{ color: a.color }}>{a.icon}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{a.label}</div>
-                    <div className="text-xs text-muted">{a.date}</div>
+            {upcomingActivities.length === 0 ? (
+              <p className="text-xs text-muted py-2">No upcoming placement activities scheduled at this time.</p>
+            ) : (
+              upcomingActivities.map((a, i) => (
+                <div key={i} className="timeline-item">
+                  <div className="flex items-center gap-3">
+                    <div style={{ color: a.color }}>{a.icon}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{a.label}</div>
+                      <div className="text-xs text-muted">{a.date}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
           <h4 className="mt-6 mb-3" style={{ color: 'var(--slate-300)' }}>Recent Activity</h4>
