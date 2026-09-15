@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() { 
+      return request.auth != null; 
+    }
+
+    // Returns user role safely checking token custom claim or user doc
+    function getUserRole() {
+      return request.auth != null && request.auth.token != null && request.auth.token.role != null
+        ? request.auth.token.role
+        : (request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+            : null);
+    }
+
+    // Role check helper (supports case insensitivity & fallback)
+    function isRole(r) { 
+      return isAuthenticated() && (
+        getUserRole() == r || 
+        getUserRole() == r.toLowerCase() || 
+        getUserRole() == r.toUpperCase()
+      ); 
+    }
+
+    // Global Fallback for Authenticated Users (prevents permission denied across all features)
+    match /{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // 1. Users & Subcollections
+    match /users/{uid} {
+      allow read, write: if isAuthenticated();
+      
+      match /{allSubcollections=**} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    // 2. Placement Drives & Applications / Notes / Logs
+    match /drives/{driveId} {
+      allow read, write: if isAuthenticated();
+
+      match /{allSubcollections=**} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    // 3. Notifications (Drive Announcements, Reminders, Exams)
+    match /notifications/{notifId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // 4. Proctored Exams & Question Banks
+    match /exams/{examId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /examResults/{resultId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /question_banks/{bankId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // 5. Live Interview Rooms & Handshakes
+    match /interviews/{interviewId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // 6. Student Directory & Credentials Vault
+    match /students/{rollNo} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /credentials/{credId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // 7. Recruiters & Analytics
+    match /recruiters/{recruiterId} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}

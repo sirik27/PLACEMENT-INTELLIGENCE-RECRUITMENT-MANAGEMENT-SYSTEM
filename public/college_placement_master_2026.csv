@@ -1,0 +1,76 @@
+RollNo,Name,Email,Branch,Section,CGPA,Backlogs,Skills,Phone,Gender,10thMarks,12thMarks,EntryType
+23P61A0501,Aditya Sharma,23p61a0501@vbithyd.ac.in,CSE,A,8.92,0,"Python,Java,React,Node.js,SQL,MongoDB",9876543201,Male,92.5,89.3,Regular
+23P61A0502,Bhavya Reddy,23p61a0502@vbithyd.ac.in,CSE,A,7.85,0,"Java,Spring Boot,MySQL,HTML,CSS",9876543202,Female,88.0,82.5,Regular
+23P61A0503,Chaitanya Kumar,23p61a0503@vbithyd.ac.in,CSE,A,9.15,0,"Python,Django,React,AWS,Docker,Kubernetes",9876543203,Male,95.2,91.8,Regular
+23P61A0504,Divya Lakshmi,23p61a0504@vbithyd.ac.in,CSE,A,6.45,2,"C,C++,Java,HTML",9876543204,Female,78.5,72.3,Regular
+23P61A0505,Eshan Varma,23p61a0505@vbithyd.ac.in,CSE,A,8.34,0,"JavaScript,TypeScript,React,Next.js,GraphQL",9876543205,Male,90.1,87.6,Regular
+23P61A0506,Fathima Begum,23p61a0506@vbithyd.ac.in,CSE,B,7.56,1,"Python,Machine Learning,TensorFlow,Pandas",9876543206,Female,85.3,80.1,Regular
+23P61A0507,Ganesh Prasad,23p61a0507@vbithyd.ac.in,CSE,B,8.78,0,"Java,Microservices,Kafka,Redis,PostgreSQL",9876543207,Male,91.7,88.4,Regular
+23P61A0508,Harini Devi,23p61a0508@vbithyd.ac.in,CSE,B,9.42,0,"Python,Deep Learning,NLP,PyTorch,OpenCV",9876543208,Female,96.8,94.2,Regular
+23P61A0509,Ishaan Reddy,23p61a0509@vbithyd.ac.in,CSE,C,5.89,3,"C,Java,HTML,CSS",9876543209,Male,72.4,68.9,Regular
+23P61A0510,Jhansi Rani,23p61a0510@vbithyd.ac.in,CSE,C,8.12,0,"React,Angular,Vue.js,Node.js,Express",9876543210,Female,87.6,84.2,Regular
+23P61A0511,Karthik Sai,23p61a0511@vbithyd.ac.in,CSE,C,7.23,1,"Python,Flask,REST API,Git,Linux",9876543211,Male,83.2,79.5,Regular
+23P61A0512,Lavanya Sri,23p61a0512@vbithyd.ac.in,CSE,D,8.67,0,"Java,Spring,Hibernate,Oracle,AWS",9876543212,Female,89.8,86.1,Regular
+23P61A0513,Manoj Teja,23p61a0513@vbithyd.ac.in,CSE,D,7.91,0,"Go,Docker,Kubernetes,Terraform,CI/CD",9876543213,Male,86.5,83.7,Regular
+23P61A0514,Niharika Chowdary,23p61a0514@vbithyd.ac.in,CSE,E,9.05,0,"Python,Data Science,Tableau,Power BI,SQL",9876543214,Female,93.4,90.6,Regular
+23P61A0515,Omkar Nath,23p61a0515@vbithyd.ac.in,CSE,E,6.78,2,"C++,Data Structures,Algorithms,Java",9876543215,Male,80.1,76.3,Regular
+23P61A0516,Priya Darshini,23p61a0516@vbithyd.ac.in,CSE,F,8.45,0,"React Native,Flutter,Dart,Firebase,MongoDB",9876543216,Female,88.9,85.4,Regular
+23P61A0517,Rahul Krishnan,23p61a0517@vbithyd.ac.in,CSE,F,7.34,1,"Python,Selenium,Pytest,Jenkins,DevOps",9876543217,Male,84.7,81.2,Regular
+24P65A0518,Sanjana Kumari,24p65a0518@vbithyd.ac.in,CSE,F,7.12,0,"Java,Android,Kotlin,Firebase",9876543218,Female,82.3,78.9,Lateral
+23P61A6701,Tarun Reddy,23p61a6701@vbithyd.ac.in,Data Science,A,8.56,0,"Python,R,Machine Learning,Deep Learning,SQL,Spark",9876543219,Male,90.4,87.1,Regular
+23P61A6702,Uma Maheshwari,23p61a6702@vbithyd.ac.in,Data Science,A,9.23,0,"Python,TensorFlow,Keras,NLP,Computer Vision,AWS",9876543220,Female,94.6,92.1,Regular
+23P61A6703,Venkat Sai,23p61a6703@vbithyd.ac.in,Data Science,A,7.45,1,"Python,Pandas,NumPy,Scikit-learn,Tableau",9876543221,Male,84.2,80.8,Regular
+23P61A6704,Waseem Ahmed,23p61a6704@vbithyd.ac.in,Data Science,B,8.89,0,"Python,PySpark,Hadoop,Hive,Airflow,MLflow",9876543222,Male,91.3,88.7,Regular
+23P61A6705,Xena Fatima,23p61a6705@vbithyd.ac.in,Data Science,B,6.12,3,"Python,Excel,SQL,Basic ML",9876543223,Female,75.8,71.2,Regular
+23P61A6706,Yogesh Kumar,23p61a6706@vbithyd.ac.in,Data Science,B,8.34,0,"Python,MongoDB,Neo4j,Elasticsearch,Grafana",9876543224,Male,89.5,86.3,Regular
+23P61A6707,Zara Sheikh,23p61a6707@vbithyd.ac.in,Data Science,C,7.78,0,"R,Python,Statistics,Probability,SAS,SPSS",9876543225,Female,86.1,83.5,Regular
+24P65A6708,Ajay Teja,24p65a6708@vbithyd.ac.in,Data Science,C,6.89,1,"Python,SQL,Power BI,Excel",9876543226,Male,79.4,75.6,Lateral
+24P65A6709,Bindhu Sree,24p65a6709@vbithyd.ac.in,Data Science,C,7.56,0,"Python,Data Analysis,Matplotlib,Seaborn",9876543227,Female,83.7,80.2,Lateral
+23P61A0401,Chandrasekhar Rao,23p61a0401@vbithyd.ac.in,ECE,A,8.23,0,"Embedded C,VHDL,MATLAB,Arduino,IoT",9876543228,Male,88.4,85.7,Regular
+23P61A0402,Deepthi Reddy,23p61a0402@vbithyd.ac.in,ECE,A,7.67,1,"C,MATLAB,Signal Processing,PCB Design",9876543229,Female,85.6,82.1,Regular
+23P61A0403,Eswar Prasad,23p61a0403@vbithyd.ac.in,ECE,A,9.01,0,"Python,VLSI,Verilog,Cadence,Xilinx",9876543230,Male,93.1,90.4,Regular
+23P61A0404,Feroz Khan,23p61a0404@vbithyd.ac.in,ECE,B,6.34,2,"C,C++,MATLAB,Basic Electronics",9876543231,Male,77.2,73.8,Regular
+23P61A0405,Gayathri Nair,23p61a0405@vbithyd.ac.in,ECE,B,8.45,0,"Python,IoT,Raspberry Pi,AWS IoT,MQTT",9876543232,Female,89.7,86.9,Regular
+23P61A0406,Hari Shankar,23p61a0406@vbithyd.ac.in,ECE,B,7.89,0,"Embedded Linux,ARM,RTOS,C++",9876543233,Male,87.3,84.1,Regular
+23P61A0407,Indu Priya,23p61a0407@vbithyd.ac.in,ECE,C,8.12,0,"MATLAB,Simulink,Control Systems,Signal Processing",9876543234,Female,88.1,85.3,Regular
+23P61A0408,Jagadeesh Reddy,23p61a0408@vbithyd.ac.in,ECE,C,5.56,4,"C,Basic Electronics,HTML",9876543235,Male,70.3,66.5,Regular
+24P65A0409,Kavitha Sri,24p65a0409@vbithyd.ac.in,ECE,C,7.23,0,"Python,MATLAB,Arduino,Sensors",9876543236,Female,82.8,79.4,Lateral
+23P61A0201,Lokesh Varma,23p61a0201@vbithyd.ac.in,EEE,A,8.56,0,"MATLAB,Simulink,Power Systems,PLC,SCADA",9876543237,Male,90.2,87.5,Regular
+23P61A0202,Madhavi Latha,23p61a0202@vbithyd.ac.in,EEE,A,7.34,1,"AutoCAD,ETAP,Power Electronics,C",9876543238,Female,84.5,81.1,Regular
+23P61A0203,Naresh Babu,23p61a0203@vbithyd.ac.in,EEE,A,8.89,0,"Python,MATLAB,Machine Learning,Renewable Energy,IoT",9876543239,Male,91.8,89.2,Regular
+23P61A0204,Padma Priya,23p61a0204@vbithyd.ac.in,EEE,B,6.67,2,"C,MATLAB,Basic Circuits",9876543240,Female,79.1,75.3,Regular
+23P61A0205,Rajesh Kumar,23p61a0205@vbithyd.ac.in,EEE,B,8.01,0,"PLC,SCADA,DCS,Ladder Logic,HMI",9876543241,Male,87.4,84.6,Regular
+23P61A0206,Surekha Rani,23p61a0206@vbithyd.ac.in,EEE,C,7.78,0,"MATLAB,Simulink,Embedded Systems,ARM",9876543242,Female,86.3,83.7,Regular
+24P65A0207,Teja Swaroop,24p65a0207@vbithyd.ac.in,EEE,C,6.45,1,"C,MATLAB,AutoCAD",9876543243,Male,78.6,74.2,Lateral
+23P61A0301,Uday Kiran,23p61a0301@vbithyd.ac.in,MECH,A,8.23,0,"AutoCAD,SolidWorks,CATIA,ANSYS,Python",9876543244,Male,88.7,85.9,Regular
+23P61A0302,Vijaya Lakshmi,23p61a0302@vbithyd.ac.in,MECH,A,7.56,1,"AutoCAD,Creo,GD&T,CNC Programming",9876543245,Female,85.1,81.6,Regular
+23P61A0303,Waqar Ali,23p61a0303@vbithyd.ac.in,MECH,A,9.12,0,"Python,MATLAB,CFD,FEA,SolidWorks,3D Printing",9876543246,Male,94.3,91.7,Regular
+23P61A0304,Yamini Devi,23p61a0304@vbithyd.ac.in,MECH,B,6.23,3,"AutoCAD,Basic Manufacturing",9876543247,Female,76.5,72.1,Regular
+23P61A0305,Zaheer Abbas,23p61a0305@vbithyd.ac.in,MECH,B,8.45,0,"ANSYS,Hypermesh,MATLAB,Thermodynamics,Python",9876543248,Male,89.6,86.8,Regular
+23P61A0306,Aadhira Sai,23p61a0306@vbithyd.ac.in,MECH,B,7.89,0,"SolidWorks,AutoCAD,CNC,Lean Manufacturing",9876543249,Female,87.2,84.4,Regular
+23P61A0307,Bhaskar Rao,23p61a0307@vbithyd.ac.in,MECH,C,7.12,1,"AutoCAD,Pro/E,Manufacturing Processes",9876543250,Male,83.4,79.8,Regular
+24P65A0308,Chandra Mohan,24p65a0308@vbithyd.ac.in,MECH,C,6.78,0,"SolidWorks,AutoCAD,Basic Python",9876543251,Male,80.2,76.7,Lateral
+23P61A0101,Devi Prasad,23p61a0101@vbithyd.ac.in,CIVIL,A,8.67,0,"AutoCAD,STAAD Pro,Revit,ETABS,Python",9876543252,Male,90.8,87.3,Regular
+23P61A0102,Eshwari Kumari,23p61a0102@vbithyd.ac.in,CIVIL,A,7.45,1,"AutoCAD,Primavera,MS Project,Surveying",9876543253,Female,84.9,81.4,Regular
+23P61A0103,Farhan Ahmed,23p61a0103@vbithyd.ac.in,CIVIL,A,8.91,0,"STAAD Pro,ETABS,SAP2000,AutoCAD,MATLAB",9876543254,Male,92.5,89.7,Regular
+23P61A0104,Gayatri Sharma,23p61a0104@vbithyd.ac.in,CIVIL,B,6.12,2,"AutoCAD,Basic Surveying,Excel",9876543255,Female,75.3,71.8,Regular
+23P61A0105,Harish Chandra,23p61a0105@vbithyd.ac.in,CIVIL,B,8.34,0,"Python,GIS,Remote Sensing,QGIS,AutoCAD",9876543256,Male,89.1,86.5,Regular
+23P61A0106,Indira Reddy,23p61a0106@vbithyd.ac.in,CIVIL,B,7.78,0,"Revit,BIM,Navisworks,AutoCAD,Quantity Surveying",9876543257,Female,86.7,83.2,Regular
+23P61A0107,Jayaram Naidu,23p61a0107@vbithyd.ac.in,CIVIL,C,7.01,1,"AutoCAD,STAAD Pro,Concrete Technology",9876543258,Male,82.5,78.9,Regular
+24P65A0108,Keerthi Priya,24p65a0108@vbithyd.ac.in,CIVIL,C,6.56,0,"AutoCAD,Excel,Basic Surveying",9876543259,Female,78.1,74.6,Lateral
+23P61A0518,Lakshmi Narayana,23p61a0518@vbithyd.ac.in,CSE,A,8.78,0,"Python,Java,React,Node.js,AWS,CI/CD",9876543260,Male,91.2,88.1,Regular
+23P61A0519,Manasa Reddy,23p61a0519@vbithyd.ac.in,CSE,B,7.23,1,"JavaScript,HTML,CSS,Bootstrap,jQuery",9876543261,Female,83.8,80.3,Regular
+23P61A0520,Naveen Teja,23p61a0520@vbithyd.ac.in,CSE,C,8.56,0,"Python,Django,PostgreSQL,Redis,Celery,Docker",9876543262,Male,90.6,87.8,Regular
+23P61A0521,Ojaswini Patel,23p61a0521@vbithyd.ac.in,CSE,D,9.34,0,"Java,Spring Boot,Microservices,Kafka,AWS,Docker",9876543263,Female,95.8,93.1,Regular
+23P61A0522,Pavan Kalyan,23p61a0522@vbithyd.ac.in,CSE,E,6.01,3,"C,Java,Basic Web Dev",9876543264,Male,73.2,69.5,Regular
+23P61A0523,Roja Sri,23p61a0523@vbithyd.ac.in,CSE,F,8.23,0,"Python,Cybersecurity,Network Security,Ethical Hacking",9876543265,Female,88.5,85.2,Regular
+23P61A6710,Srikar Reddy,23p61a6710@vbithyd.ac.in,Data Science,A,8.01,0,"Python,SQL,Tableau,Apache Spark,Kafka",9876543266,Male,87.9,84.5,Regular
+23P61A6711,Tejaswini Rao,23p61a6711@vbithyd.ac.in,Data Science,B,7.89,0,"Python,R,Statistical Modeling,A/B Testing,SQL",9876543267,Female,86.4,83.1,Regular
+23P61A6712,Uday Bhaskar,23p61a6712@vbithyd.ac.in,Data Science,C,8.45,0,"Python,Deep Learning,GANs,Transformers,MLOps",9876543268,Male,89.7,86.9,Regular
+24P65A6713,Vaishali Kumari,24p65a6713@vbithyd.ac.in,Data Science,A,7.12,0,"Python,Excel,Power BI,Basic SQL",9876543269,Female,82.1,78.6,Lateral
+23P61A0410,Krishna Murthy,23p61a0410@vbithyd.ac.in,ECE,A,8.67,0,"Embedded C,Python,IoT,PCB Design,FPGA",9876543270,Male,90.3,87.6,Regular
+23P61A0411,Mounika Sri,23p61a0411@vbithyd.ac.in,ECE,B,7.34,1,"MATLAB,Signal Processing,C,Microcontrollers",9876543271,Female,84.8,81.3,Regular
+23P61A0208,Naga Raju,23p61a0208@vbithyd.ac.in,EEE,A,8.12,0,"PLC,SCADA,Python,MATLAB,Industrial Automation",9876543272,Male,88.2,85.5,Regular
+23P61A0209,Prasanna Laxmi,23p61a0209@vbithyd.ac.in,EEE,B,7.56,0,"MATLAB,Power Systems,Protection,Relay Testing",9876543273,Female,85.4,82.7,Regular
+23P61A0309,Ravi Teja,23p61a0309@vbithyd.ac.in,MECH,A,8.34,0,"CATIA,ANSYS,CFD,Python,MATLAB",9876543274,Male,89.3,86.1,Regular
+23P61A0109,Sneha Reddy,23p61a0109@vbithyd.ac.in,CIVIL,A,7.89,0,"STAAD Pro,AutoCAD,Revit,Primavera P6",9876543275,Female,87.1,84.3,Regular
