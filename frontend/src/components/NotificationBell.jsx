@@ -10,32 +10,7 @@ export default function NotificationBell({ onApplyDrive }) {
     const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snapshot) => {
       if (snapshot.empty) {
-        setNotifications([
-          {
-            id: 'n1',
-            title: 'New Drive: Infosys Specialist Programmer',
-            message: 'Infosys Limited drive is now live for CSE, IT, ECE & DS.',
-            company: 'Infosys Limited',
-            role: 'Specialist Programmer',
-            driveId: 'd1',
-            package: 950000,
-            read: false,
-            type: 'drive_alert',
-            createdAt: new Date(),
-          },
-          {
-            id: 'n2',
-            title: 'Reminder: TCS Digital Drive Closing Soon',
-            message: 'Application window for TCS Digital closes in 4 hours.',
-            company: 'Tata Consultancy Services',
-            role: 'TCS Digital',
-            driveId: 'd2',
-            package: 700000,
-            read: false,
-            type: 'reminder',
-            createdAt: new Date(Date.now() - 3600000),
-          },
-        ]);
+        setNotifications([]);
       } else {
         const notifs = snapshot.docs.map(d => ({
           id: d.id,
@@ -44,7 +19,8 @@ export default function NotificationBell({ onApplyDrive }) {
         setNotifications(notifs);
       }
     }, (err) => {
-      console.warn('Notifications subscribe fallback:', err);
+      console.warn('Notifications subscribe warning:', err);
+      setNotifications([]);
     });
 
     return () => unsub();
