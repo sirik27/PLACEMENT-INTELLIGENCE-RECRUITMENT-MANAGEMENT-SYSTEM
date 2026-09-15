@@ -169,9 +169,9 @@ export default function TPOStudents() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="flex items-center gap-2">
-            Student Cohort <span className="text-gradient">Management</span>
+            Student <span className="text-gradient">Management</span>
           </h1>
-          <p className="text-xs text-muted mt-1">Cohort directory and Round 2 exam permissions</p>
+          <p className="text-xs text-muted mt-1">Student directory & roster CRUD management</p>
         </div>
         <button className="btn btn-primary btn-sm" onClick={() => {
           setForm({ name: '', rollNo: '', email: '', branch: 'CSE', sec: 'A', cgpa: '8.00', status: 'Eligible', qualifiedForTechnical: false });
@@ -183,7 +183,7 @@ export default function TPOStudents() {
 
       {/* Bulk Provision */}
       <div className="glass-card mb-6">
-        <h3 className="mb-2">Bulk Provision Cohort (CSV)</h3>
+        <h3 className="mb-2">Bulk Import Students (CSV)</h3>
         <p className="text-xs text-muted font-mono mb-3">Format: rollNo, name, branch, cgpa, email</p>
         <textarea
           className="input-field text-xs font-mono mb-3"
@@ -194,7 +194,7 @@ export default function TPOStudents() {
         />
         <div className="flex items-center justify-between">
           <button className="btn btn-secondary btn-sm" onClick={uploadCSV} disabled={uploading || !csv}>
-            {uploading ? 'Provisioning...' : 'Upload & Provision'}
+            {uploading ? 'Importing...' : 'Upload & Import'}
           </button>
           {msg && <span className="text-xs font-semibold text-emerald-400">{msg}</span>}
         </div>
@@ -204,8 +204,8 @@ export default function TPOStudents() {
       <div className="glass-card">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4 mb-4">
           <div>
-            <h3>Cohort Registry ({filtered.length})</h3>
-            <p className="text-xs text-muted">Manage candidate permissions</p>
+            <h3>Student Directory ({filtered.length})</h3>
+            <p className="text-xs text-muted">Manage student records (Add, Read, Update, Delete)</p>
           </div>
           <input
             className="input-field text-xs"
@@ -225,7 +225,6 @@ export default function TPOStudents() {
                 <th>Branch & Sec</th>
                 <th>CGPA</th>
                 <th>Status</th>
-                <th>Technical Access</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -251,15 +250,6 @@ export default function TPOStudents() {
                       <span className="badge badge-primary">
                         {s.status}
                       </span>
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className={`btn ${s.qualifiedForTechnical ? 'btn-success' : 'btn-secondary'} btn-xs`}
-                        onClick={() => toggleTechnicalPermission(s)}
-                      >
-                        {s.qualifiedForTechnical ? '✓ Qualified' : 'Grant Access'}
-                      </button>
                     </td>
                     <td>
                       <div className="flex items-center gap-2">
