@@ -40,8 +40,10 @@ export default function NotificationBell({ onApplyDrive }) {
     for (const n of notifications) {
       if (!n.read) {
         try {
-          await updateDoc(doc(doc(db, 'notifications', n.id)), { read: true });
-        } catch { /* fallback */ }
+          await updateDoc(doc(db, 'notifications', n.id), { read: true });
+        } catch (err) {
+          console.error('Failed to mark notification as read:', err);
+        }
       }
     }
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
