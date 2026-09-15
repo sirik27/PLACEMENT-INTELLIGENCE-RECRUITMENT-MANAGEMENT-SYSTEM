@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
-import { db, collection, query, orderBy, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from '../../lib/firebase';
-import { formatDate } from '../../lib/utils';
+import { db, collection, query, where, orderBy, onSnapshot, addDoc, getDocs, deleteDoc, doc, serverTimestamp } from '../../lib/firebase';
+import { formatDate, formatCurrency } from '../../lib/utils';
 
 export default function TPONotifications() {
   const [notifications, setNotifications] = useState([]);
+  const [drives, setDrives] = useState([]);
+  const [activeTab, setActiveTab] = useState('drives'); // 'drives' | 'history'
   const [form, setForm] = useState({
     title: '',
     company: '',
     role: '',
     package: '',
+    location: 'Hyderabad / Hybrid',
+    cutoff: '6.5',
     message: '',
     type: 'drive_alert',
   });
@@ -16,17 +20,32 @@ export default function TPONotifications() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
 
+  // 1. Subscribe to notifications collection
   useEffect(() => {
-    const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'));
-    const unsub = onSnapshot(q, (snap) => {
+    const qNotifs = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'));
+    const unsubNotifs = onSnapshot(qNotifs, (snap) => {
       if (!snap.empty) {
         setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       } else {
         setNotifications([]);
       }
-    });
+    }, err => console.warn('Notifs listener warn:', err));
 
-    return () => unsub();
+    return () => unsubNotifs();
+  }, []);
+
+  // 2. Subscribe to drives collection
+  useEffect(() => {
+    const qDrives = query(collection(db, 'drives'), orderBy('createdAt', 'desc'));
+    const unsubDrives = onSnapshot(qDrives, (snap) => {
+      if (!snap.empty) {
+        setDrives(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } else {
+        setDrives([]);
+      }
+    }, err => console.warn('Drives listener warn:', err));
+
+    return () => unsubDrives();
   }, []);
 
   const handleCreateNotification = async (e) => {
@@ -35,16 +54,7 @@ export default function TPONotifications() {
     setMsg('');
 
     try {
-      const notifRef = await addDoc(collection(db, 'notifications'), {
-        title: form.title,
-        company: form.company,
-        role: form.role,
-        package: form.package,
-        message: form.message,
-        type: form.type,
-        read: false,
-        createdAt: serverTimestamp(),
-      });
+      let createdDriveId = null;
 
       if (form.type === 'drive_alert') {
         const numericPkg = parseInt(form.package.replace(/[^0-9]/g, ''), 10) || 800000;
@@ -57,14 +67,26 @@ export default function TPONotifications() {
           cutoff: parseFloat(form.cutoff) || 6.5,
           status: 'active',
           applicantCount: 0,
-          skills: ['Python', 'SQL', 'Problem Solving'],
-          notificationId: notifRef.id,
+          skills: ['Problem Solving', 'Data Structures', 'SQL'],
           createdAt: serverTimestamp(),
         };
-        await addDoc(collection(db, 'drives'), driveDoc);
+        const driveRef = await addDoc(collection(db, 'drives'), driveDoc);
+        createdDriveId = driveRef.id;
       }
 
-      setMsg('Broadcast alert sent live to all Student Portals');
+      await addDoc(collection(db, 'notifications'), {
+        title: form.title,
+        company: form.company,
+        role: form.role,
+        package: form.package,
+        message: form.message,
+        type: form.type,
+        driveId: createdDriveId,
+        read: false,
+        createdAt: serverTimestamp(),
+      });
+
+      setMsg('Broadcast alert and placement drive published successfully to all Student Portals!');
       setForm({
         title: '',
         company: '',
@@ -76,18 +98,55 @@ export default function TPONotifications() {
         type: 'drive_alert',
       });
     } catch (err) {
-      setMsg(err.message);
+      setMsg(`Error: ${err.message}`);
     }
 
     setLoading(false);
   };
 
-  const handleDeleteNotification = async (id) => {
-    if (!window.confirm('Are you sure you want to retract this notification broadcast?')) return;
+  // Delete Drive from drives collection AND associated notifications
+  const handleDeleteDrive = async (driveId, companyName) => {
+    if (!window.confirm(`Are you sure you want to PERMANENTLY REMOVE the placement drive for "${companyName}"? This will remove it from all candidate portals.`)) return;
+
     try {
-      await deleteDoc(doc(db, 'notifications', id));
-    } catch {
-      setNotifications(prev => prev.filter(n => n.id !== id));
+      // 1. Delete drive document from drives collection
+      if (driveId) {
+        await deleteDoc(doc(db, 'drives', driveId));
+      }
+
+      // 2. Delete linked notifications from notifications collection
+      if (companyName) {
+        const qN = query(collection(db, 'notifications'), where('company', '==', companyName));
+        const nSnap = await getDocs(qN);
+        for (const nDoc of nSnap.docs) {
+          await deleteDoc(doc(db, 'notifications', nDoc.id));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete drive:', err);
+      alert(`Error deleting drive: ${err.message}`);
+    }
+  };
+
+  // Delete Notification from notifications collection AND associated drive
+  const handleDeleteNotification = async (n) => {
+    if (!window.confirm(`Are you sure you want to retract the broadcast "${n.title}"? This will also remove the drive from all Student Portals.`)) return;
+    try {
+      if (n.id) {
+        await deleteDoc(doc(db, 'notifications', n.id));
+      }
+
+      if (n.driveId) {
+        await deleteDoc(doc(db, 'drives', n.driveId));
+      } else if (n.company) {
+        const qD = query(collection(db, 'drives'), where('company', '==', n.company));
+        const dSnap = await getDocs(qD);
+        for (const dDoc of dSnap.docs) {
+          await deleteDoc(doc(db, 'drives', dDoc.id));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to retract notification:', err);
     }
   };
 
@@ -96,16 +155,16 @@ export default function TPONotifications() {
       <div className="page-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="flex items-center gap-2">
-            Drive <span className="text-gradient">Broadcasts & Alerts</span>
+            Drive <span className="text-gradient">Broadcasts & Active Drives</span>
           </h1>
-          <p className="text-xs text-muted mt-1">Broadcast real-time campus hiring alerts directly to Student Portals</p>
+          <p className="text-xs text-muted mt-1">Broadcast hiring alerts and manage active placement drives with real-time database sync</p>
         </div>
       </div>
 
       <div className="grid grid-2 gap-6 items-start">
-        {/* CREATE NOTIFICATION FORM */}
+        {/* CREATE DRIVE / NOTIFICATION FORM */}
         <div className="glass-card">
-          <h3 className="border-b border-slate-800 pb-3 mb-4">Broadcast Alert</h3>
+          <h3 className="border-b border-slate-800 pb-3 mb-4">Broadcast Alert & Publish Drive</h3>
 
           {msg && <div className="alert alert-success mb-4">{msg}</div>}
 
@@ -203,56 +262,128 @@ export default function TPONotifications() {
             </div>
 
             <button type="submit" className="btn btn-primary mt-2" disabled={loading}>
-              {loading ? 'Broadcasting...' : 'Broadcast Alert & Publish Drive'}
+              {loading ? 'Publishing to Database...' : 'Broadcast Alert & Publish Drive'}
             </button>
           </form>
         </div>
 
-        {/* FEED */}
+        {/* RIGHT COLUMN: TABS FOR ACTIVE DRIVES & BROADCAST HISTORY */}
         <div className="glass-card">
-          <h3 className="border-b border-slate-800 pb-3 mb-4">
-            Broadcast History ({notifications.length})
-          </h3>
-          <div className="flex flex-col gap-3 max-h-[500px] overflow-y-auto">
-            {notifications.map(n => (
-              <div
-                key={n.id}
-                className="p-4 rounded-xl flex flex-col gap-2"
-                style={{ background: 'rgba(2,6,23,0.5)', border: '1px solid var(--border-default)' }}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="badge badge-primary">
-                    {n.type === 'reminder' ? 'Reminder' : 'Drive Alert'}
-                  </span>
-                  <span className="text-xs text-muted font-mono">{formatDate(n.createdAt)}</span>
-                </div>
-
-                <strong style={{ fontSize: '0.9375rem', color: 'var(--text-bright)' }}>{n.title}</strong>
-                <p className="text-xs text-muted">{n.message}</p>
-
-                <div className="flex items-center justify-between pt-3 border-t border-slate-800">
-                  <span className="text-xs text-muted">Target: All Portals</span>
-                  <button
-                    type="button"
-                    className="btn btn-danger btn-xs"
-                    style={{
-                      background: 'rgba(244, 63, 94, 0.1)',
-                      border: '1px solid rgba(244, 63, 94, 0.4)',
-                      color: '#fb7185',
-                      padding: '0.375rem 0.875rem',
-                      borderRadius: 'var(--radius-md)',
-                      fontWeight: 600,
-                    }}
-                    onClick={() => handleDeleteNotification(n.id)}
-                  >
-                    Retract Broadcast
-                  </button>
-                </div>
-              </div>
-            ))}
+          {/* Sub Nav Bar */}
+          <div className="flex items-center gap-2 border-b border-slate-800 pb-3 mb-4">
+            <button
+              type="button"
+              onClick={() => setActiveTab('drives')}
+              className={`btn ${activeTab === 'drives' ? 'btn-primary' : 'btn-ghost'} btn-sm`}
+            >
+              Active Placement Drives ({drives.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('history')}
+              className={`btn ${activeTab === 'history' ? 'btn-primary' : 'btn-ghost'} btn-sm`}
+            >
+              Broadcast History ({notifications.length})
+            </button>
           </div>
+
+          {/* ACTIVE DRIVES TAB */}
+          {activeTab === 'drives' && (
+            <div className="flex flex-col gap-3 max-h-[550px] overflow-y-auto">
+              {drives.length === 0 ? (
+                <div className="text-center p-8 text-muted">
+                  No active placement drives found in Cloud Firestore.
+                </div>
+              ) : (
+                drives.map(d => (
+                  <div
+                    key={d.id}
+                    className="p-4 rounded-xl flex flex-col gap-2"
+                    style={{ background: 'rgba(2,6,23,0.5)', border: '1px solid var(--border-default)' }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <strong style={{ fontSize: '1rem', color: 'var(--text-bright)' }}>{d.company}</strong>
+                      <span className="badge badge-success">
+                        {d.packageStr || formatCurrency(d.package)}
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-muted">
+                      Role: <strong className="text-slate-200">{d.role}</strong> · Location: {d.location} · Cutoff: {d.cutoff} CGPA
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+                      <span className="text-xs text-muted font-mono">Status: LIVE ACTIVE</span>
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-xs"
+                        style={{
+                          background: 'rgba(244, 63, 94, 0.15)',
+                          border: '1px solid rgba(244, 63, 94, 0.4)',
+                          color: '#fb7185',
+                          padding: '0.4rem 0.875rem',
+                          borderRadius: 'var(--radius-md)',
+                          fontWeight: 700,
+                        }}
+                        onClick={() => handleDeleteDrive(d.id, d.company)}
+                      >
+                        🗑 Delete Drive (Remove from All Portals)
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* BROADCAST HISTORY TAB */}
+          {activeTab === 'history' && (
+            <div className="flex flex-col gap-3 max-h-[550px] overflow-y-auto">
+              {notifications.length === 0 ? (
+                <div className="text-center p-8 text-muted">No broadcast alerts found.</div>
+              ) : (
+                notifications.map(n => (
+                  <div
+                    key={n.id}
+                    className="p-4 rounded-xl flex flex-col gap-2"
+                    style={{ background: 'rgba(2,6,23,0.5)', border: '1px solid var(--border-default)' }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="badge badge-primary">
+                        {n.type === 'reminder' ? 'Reminder' : 'Drive Alert'}
+                      </span>
+                      <span className="text-xs text-muted font-mono">{formatDate(n.createdAt)}</span>
+                    </div>
+
+                    <strong style={{ fontSize: '0.9375rem', color: 'var(--text-bright)' }}>{n.title}</strong>
+                    <p className="text-xs text-muted">{n.message}</p>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+                      <span className="text-xs text-muted">Target: All Student Portals</span>
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-xs"
+                        style={{
+                          background: 'rgba(244, 63, 94, 0.15)',
+                          border: '1px solid rgba(244, 63, 94, 0.4)',
+                          color: '#fb7185',
+                          padding: '0.4rem 0.875rem',
+                          borderRadius: 'var(--radius-md)',
+                          fontWeight: 700,
+                        }}
+                        onClick={() => handleDeleteNotification(n)}
+                      >
+                        Retract Broadcast & Delete Drive
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
+

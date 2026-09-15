@@ -75,6 +75,26 @@ export default function TPODashboard() {
   const handleBroadcastNotification = async (e) => {
     e.preventDefault();
     try {
+      let createdDriveId = null;
+
+      if (notifForm.type === 'drive_alert' && notifForm.company) {
+        const numericPkg = parseInt((notifForm.package || '800000').replace(/[^0-9]/g, ''), 10) || 800000;
+        const driveDoc = {
+          company: notifForm.company,
+          role: notifForm.role || 'Job Role',
+          package: numericPkg > 100 ? numericPkg : numericPkg * 100000,
+          packageStr: notifForm.package || '8 LPA',
+          location: 'Hyderabad / Hybrid',
+          cutoff: 6.5,
+          status: 'active',
+          applicantCount: 0,
+          skills: ['Problem Solving', 'Data Structures', 'SQL'],
+          createdAt: serverTimestamp(),
+        };
+        const driveRef = await addDoc(collection(db, 'drives'), driveDoc);
+        createdDriveId = driveRef.id;
+      }
+
       await addDoc(collection(db, 'notifications'), {
         title: notifForm.title,
         company: notifForm.company,
@@ -82,6 +102,7 @@ export default function TPODashboard() {
         package: notifForm.package,
         message: notifForm.message,
         type: notifForm.type,
+        driveId: createdDriveId,
         read: false,
         createdAt: serverTimestamp(),
       });
