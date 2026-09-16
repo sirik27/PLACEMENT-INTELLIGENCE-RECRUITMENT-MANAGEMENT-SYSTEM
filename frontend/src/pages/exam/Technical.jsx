@@ -27,6 +27,8 @@ export default function ExamTechnical() {
 
   const rollNo = profile?.rollNo || '23P61A0501';
 
+  const [assignedQuestion, setAssignedQuestion] = useState(null);
+
   // Cross-round qualification gate: check if student passed Round 1
   useEffect(() => {
     if (profile && !profile.qualifiedForRound2 && !profile.aptitudePassed) {
@@ -42,10 +44,36 @@ export default function ExamTechnical() {
         if (snap.exists()) {
           const data = snap.data();
           setExamData(data);
-          if (data.durationMinutes) setDuration(data.durationMinutes);
-          if (data.testCases && Array.isArray(data.testCases)) {
-            setTestCases(data.testCases);
+          const dur = data.technicalDurationMinutes || data.durationMinutes;
+          if (dur) setDuration(dur);
+          
+          let pool = [];
+          if (data.codingQuestions && Array.isArray(data.codingQuestions) && data.codingQuestions.length > 0) {
+            pool = data.codingQuestions;
+          } else if (data.techProblem && data.techProblem.title) {
+            pool = [{
+              title: data.techProblem.title,
+              description: data.techProblem.description || '',
+              sampleInput: data.techProblem.sampleInput || '',
+              sampleOutput: data.techProblem.sampleOutput || '',
+              testCases: Array.isArray(data.testCases) ? data.testCases : []
+            }];
+          }
+
+          if (pool.length > 0) {
+            const studentId = rollNo || user?.uid || 'candidate';
+            let hash = 0;
+            const str = String(studentId);
+            for (let i = 0; i < str.length; i++) {
+              hash = (hash << 5) - hash + str.charCodeAt(i);
+              hash |= 0;
+            }
+            const qIdx = Math.abs(hash) % pool.length;
+            const selectedQ = { ...pool[qIdx], questionIndex: qIdx, poolTotal: pool.length };
+            setAssignedQuestion(selectedQ);
+            setTestCases(selectedQ.testCases || []);
           } else {
+            setAssignedQuestion(null);
             setTestCases([]);
           }
         }
@@ -54,7 +82,7 @@ export default function ExamTechnical() {
       }
     };
     fetchExam();
-  }, [examId]);
+  }, [examId, rollNo, user]);
 
   const [latestSubmissionData, setLatestSubmissionData] = useState({ passedCount: 0, totalTests: 0, code: '', lang: 'python' });
 
@@ -68,6 +96,7 @@ export default function ExamTechnical() {
           name: profile?.name || 'Student Candidate',
           department: profile?.department || 'CSE',
           examType: 'Round 2 Technical Coding',
+          questionTitle: assignedQuestion?.title || '',
           score: 0,
           status: 'DISQUALIFIED (Malpractice)',
           disqualificationReason: reason,
@@ -90,7 +119,7 @@ export default function ExamTechnical() {
         console.warn('Technical disqualify error:', e);
       }
     }
-  }, [user, examId, rollNo, profile, testCases.length]);
+  }, [user, examId, rollNo, profile, testCases.length, assignedQuestion]);
 
   const handleExitAfterDisqualify = () => {
     nav('/student');
@@ -130,6 +159,7 @@ export default function ExamTechnical() {
           name: profile?.name || 'Student Candidate',
           department: profile?.department || 'CSE',
           examType: 'Round 2 Technical Coding',
+          questionTitle: assignedQuestion?.title || '',
           score: scorePct,
           status: allPassed ? 'PASSED' : 'FAILED',
           driveId: examId || 'general',
@@ -218,14 +248,21 @@ export default function ExamTechnical() {
       {/* Header with test case requirement */}
       <div className="glass-card" style={{ padding: '1.25rem 1.5rem', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(51, 65, 85, 0.7)', borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <span className="badge badge-warning" style={{ marginBottom: '0.35rem', fontSize: '0.6875rem' }}>
-            ROUND 2: TECHNICAL CODING SANDBOX
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+            <span className="badge badge-warning" style={{ fontSize: '0.6875rem' }}>
+              ROUND 2: TECHNICAL CODING SANDBOX
+            </span>
+            {assignedQuestion && (
+              <span className="badge badge-primary" style={{ fontSize: '0.6875rem', fontWeight: 800 }}>
+                🎯 Assigned Problem #{assignedQuestion.questionIndex + 1} of {assignedQuestion.poolTotal} in Pool
+              </span>
+            )}
+          </div>
           <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#ffffff', margin: 0 }}>
             {examData?.driveCompany ? `${examData.driveCompany} — ` : ''}Technical Coding Assessment
           </h2>
           <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem' }}>
-            Problem: <strong style={{ color: '#818cf8' }}>{examData?.techProblem?.title || '1 to 100 Number Sequence Generator & Filter'}</strong> · Candidate: <strong style={{ color: '#cbd5e1', fontFamily: 'var(--font-mono)' }}>{rollNo}</strong>
+            Problem: <strong style={{ color: '#818cf8' }}>{assignedQuestion?.title || 'Coding Problem Statement'}</strong> · Candidate: <strong style={{ color: '#cbd5e1', fontFamily: 'var(--font-mono)' }}>{rollNo}</strong>
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -235,49 +272,58 @@ export default function ExamTechnical() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
-        {/* Problem Statement Card */}
-        <div className="glass-card" style={{ padding: '1.5rem', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(99, 102, 241, 0.35)', borderRadius: '1.1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff', borderBottom: '1px solid rgba(51, 65, 85, 0.7)', paddingBottom: '0.6rem', margin: 0 }}>
-            Problem Statement
-          </h3>
-          <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#818cf8', margin: 0 }}>
-            {examData?.techProblem?.title || '1 to 100 Number Sequence Generator & Filter'}
-          </h4>
-          <p style={{ fontSize: '0.75rem', color: '#cbd5e1', lineHeight: 1.6, whiteSpace: 'pre-wrap', margin: 0 }}>
-            {examData?.techProblem?.description || "Write a program that processes numbers from 1 to 100 based on an input filter mode ('even', 'odd', 'prime', 'multiples_5') and outputs the matching sequence separated by single spaces."}
-          </p>
-
-          <div style={{ padding: '0.85rem', borderRadius: '0.75rem', background: '#020617', border: '1px solid rgba(51, 65, 85, 0.8)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-            <span style={{ color: '#64748b' }}>// Example 1</span>
-            <div><span style={{ color: '#94a3b8' }}>Input: </span><span style={{ color: '#f59e0b' }}>even</span></div>
-            <div><span style={{ color: '#94a3b8' }}>Output: </span><span style={{ color: '#34d399', wordBreak: 'break-all' }}>2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 42 44 46 48 50 52 54 56 58 60 62 64 66 68 70 72 74 76 78 80 82 84 86 88 90 92 94 96 98 100</span></div>
-          </div>
-
-          {/* Test Cases List */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', paddingTop: '0.5rem' }}>
-            <h4 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#94a3b8', margin: 0 }}>
-              Test Cases ({testCases.length})
-            </h4>
-            {testCases.map((tc, i) => (
-              <div key={i} style={{ padding: '0.75rem', borderRadius: '0.6rem', background: '#020617', border: `1px solid ${tc.isHidden || tc.hidden ? 'rgba(245, 158, 11, 0.4)' : 'rgba(51, 65, 85, 0.8)'}`, fontSize: '0.75rem' }}>
-                {tc.isHidden || tc.hidden ? (
-                  <span style={{ color: '#fbbf24', fontWeight: 700 }}>🔒 Hidden Test Case {i + 1} (Evaluated on Final Submit)</span>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <div style={{ fontWeight: 700, color: '#f8fafc' }}>{tc.name || `Test Case ${i + 1}`}</div>
-                    <div><span style={{ color: '#64748b' }}>Input Mode: </span><code style={{ color: '#f59e0b' }}>{tc.input}</code></div>
-                    <div><span style={{ color: '#64748b' }}>Expected: </span><code style={{ color: '#34d399', wordBreak: 'break-all' }}>{tc.expectedOutput}</code></div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+      {!assignedQuestion ? (
+        <div className="glass-card p-8 text-center" style={{ background: 'rgba(15, 23, 42, 0.8)', borderRadius: '1.1rem' }}>
+          <h3 className="text-lg font-bold text-slate-200 mb-2">No Technical Coding Questions Configured</h3>
+          <p className="text-sm text-slate-400">The TPO / Recruiter has not published technical coding problems for this drive yet.</p>
         </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
+          {/* Problem Statement Card */}
+          <div className="glass-card" style={{ padding: '1.5rem', background: 'rgba(15, 23, 42, 0.85)', border: '1px solid rgba(99, 102, 241, 0.35)', borderRadius: '1.1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff', borderBottom: '1px solid rgba(51, 65, 85, 0.7)', paddingBottom: '0.6rem', margin: 0 }}>
+              Problem Statement
+            </h3>
+            <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#818cf8', margin: 0 }}>
+              {assignedQuestion.title}
+            </h4>
+            <p style={{ fontSize: '0.75rem', color: '#cbd5e1', lineHeight: 1.6, whiteSpace: 'pre-wrap', margin: 0 }}>
+              {assignedQuestion.description}
+            </p>
 
-        {/* Code Runner with Test Cases */}
-        <MonacoCodeRunner onSubmit={handleCodeRunnerSubmit} testCases={testCases} />
-      </div>
+            {(assignedQuestion.sampleInput || assignedQuestion.sampleOutput) && (
+              <div style={{ padding: '0.85rem', borderRadius: '0.75rem', background: '#020617', border: '1px solid rgba(51, 65, 85, 0.8)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <span style={{ color: '#64748b' }}>// Sample Example</span>
+                {assignedQuestion.sampleInput && <div><span style={{ color: '#94a3b8' }}>Input: </span><span style={{ color: '#f59e0b' }}>{assignedQuestion.sampleInput}</span></div>}
+                {assignedQuestion.sampleOutput && <div><span style={{ color: '#94a3b8' }}>Output: </span><span style={{ color: '#34d399', wordBreak: 'break-all' }}>{assignedQuestion.sampleOutput}</span></div>}
+              </div>
+            )}
+
+            {/* Test Cases List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', paddingTop: '0.5rem' }}>
+              <h4 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#94a3b8', margin: 0 }}>
+                Test Cases ({testCases.length})
+              </h4>
+              {testCases.map((tc, i) => (
+                <div key={i} style={{ padding: '0.75rem', borderRadius: '0.6rem', background: '#020617', border: `1px solid ${tc.isHidden || tc.hidden ? 'rgba(245, 158, 11, 0.4)' : 'rgba(51, 65, 85, 0.8)'}`, fontSize: '0.75rem' }}>
+                  {tc.isHidden || tc.hidden ? (
+                    <span style={{ color: '#fbbf24', fontWeight: 700 }}>🔒 Hidden Test Case {i + 1} (Evaluated on Final Submit)</span>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <div style={{ fontWeight: 700, color: '#f8fafc' }}>{tc.name || `Test Case ${i + 1}`}</div>
+                      <div><span style={{ color: '#64748b' }}>Input Mode: </span><code style={{ color: '#f59e0b' }}>{tc.input}</code></div>
+                      <div><span style={{ color: '#64748b' }}>Expected: </span><code style={{ color: '#34d399', wordBreak: 'break-all' }}>{tc.expectedOutput}</code></div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Code Runner with Test Cases */}
+          <MonacoCodeRunner onSubmit={handleCodeRunnerSubmit} testCases={testCases} />
+        </div>
+      )}
 
       {/* FINAL SUBMIT CONFIRMATION & DECLARATION MODAL */}
       {showSubmitModal && (

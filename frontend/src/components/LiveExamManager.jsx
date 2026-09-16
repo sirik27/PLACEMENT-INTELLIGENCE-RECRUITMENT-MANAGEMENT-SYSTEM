@@ -20,6 +20,8 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
     title: 'Aptitude & Technical Screening',
     examType: 'aptitude',
     durationMinutes: 30,
+    aptitudeDurationMinutes: 30,
+    technicalDurationMinutes: 45,
     passMark: 60,
     isLive: false,
   });
@@ -36,40 +38,97 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
     { id: 102, q: 'Which data structure follows the LIFO (Last In First Out) principle?', opts: ['Queue', 'Stack', 'Linked List', 'Tree'], ans: 1, topic: 'Data Structures' },
   ]);
 
-  // Technical Coding Problem & Test Cases Builder State
-  const [techProblem, setTechProblem] = useState({
-    title: '1 to 100 Number Sequence Generator & Filter',
-    description: "Write a program that processes numbers from 1 to 100 based on an input filter mode ('even', 'odd', 'prime', 'multiples_5') and outputs the matching sequence separated by single spaces.",
-    sampleInput: 'even',
-    sampleOutput: '2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 42 44 46 48 50 52 54 56 58 60 62 64 66 68 70 72 74 76 78 80 82 84 86 88 90 92 94 96 98 100'
-  });
-
-  const [testCases, setTestCases] = useState([
+  // Technical Coding Question Pool & Test Cases Builder State
+  const [codingQuestions, setCodingQuestions] = useState([
     {
-      name: 'Print Even Numbers (1 to 100)',
-      input: 'even',
-      expectedOutput: '2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 42 44 46 48 50 52 54 56 58 60 62 64 66 68 70 72 74 76 78 80 82 84 86 88 90 92 94 96 98 100',
-      isHidden: false
+      id: 1,
+      title: '1 to 100 Number Sequence Generator & Filter',
+      description: "Write a program that processes numbers from 1 to 100 based on an input filter mode ('even', 'odd', 'prime', 'multiples_5') and outputs the matching sequence separated by single spaces.",
+      sampleInput: 'even',
+      sampleOutput: '2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 42 44 46 48 50 52 54 56 58 60 62 64 66 68 70 72 74 76 78 80 82 84 86 88 90 92 94 96 98 100',
+      testCases: [
+        {
+          name: 'Print Even Numbers (1 to 100)',
+          input: 'even',
+          expectedOutput: '2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 42 44 46 48 50 52 54 56 58 60 62 64 66 68 70 72 74 76 78 80 82 84 86 88 90 92 94 96 98 100',
+          isHidden: false
+        },
+        {
+          name: 'Print Odd Numbers (1 to 100)',
+          input: 'odd',
+          expectedOutput: '1 3 5 7 9 11 13 15 17 19 21 23 25 27 29 31 33 35 37 39 41 43 45 47 49 51 53 55 57 59 61 63 65 67 69 71 73 75 77 79 81 83 85 87 89 91 93 95 97 99',
+          isHidden: false
+        },
+        {
+          name: 'Print Prime Numbers (1 to 100)',
+          input: 'prime',
+          expectedOutput: '2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71 73 79 83 89 97',
+          isHidden: false
+        },
+        {
+          name: 'Print Multiples of 5 (Hidden Test Case)',
+          input: 'multiples_5',
+          expectedOutput: '5 10 15 20 25 30 35 40 45 50 55 60 65 70 75 80 85 90 95 100',
+          isHidden: true
+        }
+      ]
     },
     {
-      name: 'Print Odd Numbers (1 to 100)',
-      input: 'odd',
-      expectedOutput: '1 3 5 7 9 11 13 15 17 19 21 23 25 27 29 31 33 35 37 39 41 43 45 47 49 51 53 55 57 59 61 63 65 67 69 71 73 75 77 79 81 83 85 87 89 91 93 95 97 99',
-      isHidden: false
+      id: 2,
+      title: 'String Word Reversal & Case Inversion',
+      description: "Write a program that takes a sentence as input, reverses the order of words in the sentence, and flips uppercase letters to lowercase and vice versa.",
+      sampleInput: 'Hello World',
+      sampleOutput: 'wORLD hELLO',
+      testCases: [
+        {
+          name: 'Basic Two Word Swap',
+          input: 'Hello World',
+          expectedOutput: 'wORLD hELLO',
+          isHidden: false
+        },
+        {
+          name: 'Multi-word Sentence Inversion',
+          input: 'Placement Intelligence Portal',
+          expectedOutput: 'pORTAL iNTELLIGENCE pLACEMENT',
+          isHidden: false
+        },
+        {
+          name: 'Hidden Case Inversion Test',
+          input: 'Code Sandbox 2026',
+          expectedOutput: '2026 sANDBOX cODE',
+          isHidden: true
+        }
+      ]
     },
     {
-      name: 'Print Prime Numbers (1 to 100)',
-      input: 'prime',
-      expectedOutput: '2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71 73 79 83 89 97',
-      isHidden: false
-    },
-    {
-      name: 'Print Multiples of 5 (Hidden Test Case)',
-      input: 'multiples_5',
-      expectedOutput: '5 10 15 20 25 30 35 40 45 50 55 60 65 70 75 80 85 90 95 100',
-      isHidden: true
+      id: 3,
+      title: 'Array Target Sum Pair Counter',
+      description: "Write a program that takes a target integer and a space-separated sequence of numbers, and outputs the total count of unique pairs that sum up to the target integer.",
+      sampleInput: '10\n1 2 3 4 5 6 7 8 9',
+      sampleOutput: '4',
+      testCases: [
+        {
+          name: 'Target 10 Pair Count',
+          input: '10\n1 2 3 4 5 6 7 8 9',
+          expectedOutput: '4',
+          isHidden: false
+        },
+        {
+          name: 'Target 15 Pair Count',
+          input: '15\n5 10 20 30 -5',
+          expectedOutput: '1',
+          isHidden: false
+        },
+        {
+          name: 'Hidden Zero Pair Test',
+          input: '0\n-5 5 -2 2 0 0',
+          expectedOutput: '3',
+          isHidden: true
+        }
+      ]
     }
   ]);
+  const [activeTechQIndex, setActiveTechQIndex] = useState(0);
 
   const [newTC, setNewTC] = useState({ name: '', input: '', expectedOutput: '', isHidden: false });
 
@@ -138,7 +197,9 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
       setExamForm({
         title: ex.title || 'Placement Screening Exam',
         examType: ex.examType || 'aptitude',
-        durationMinutes: ex.durationMinutes || 30,
+        durationMinutes: ex.examType === 'technical' ? (ex.technicalDurationMinutes || ex.durationMinutes || 45) : (ex.aptitudeDurationMinutes || ex.durationMinutes || 30),
+        aptitudeDurationMinutes: ex.aptitudeDurationMinutes || 30,
+        technicalDurationMinutes: ex.technicalDurationMinutes || 45,
         passMark: ex.passMark || 60,
         isLive: !!ex.isLive,
       });
@@ -148,11 +209,17 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
       if (ex.techQuestions && Array.isArray(ex.techQuestions)) {
         setTechQuestions(ex.techQuestions);
       }
-      if (ex.testCases && Array.isArray(ex.testCases)) {
-        setTestCases(ex.testCases);
-      }
-      if (ex.techProblem) {
-        setTechProblem(ex.techProblem);
+      if (ex.codingQuestions && Array.isArray(ex.codingQuestions) && ex.codingQuestions.length > 0) {
+        setCodingQuestions(ex.codingQuestions);
+      } else if (ex.techProblem) {
+        setCodingQuestions([{
+          id: 1,
+          title: ex.techProblem.title || '1 to 100 Number Sequence Generator & Filter',
+          description: ex.techProblem.description || "Write a program that processes numbers...",
+          sampleInput: ex.techProblem.sampleInput || 'even',
+          sampleOutput: ex.techProblem.sampleOutput || '2 4 6 8...',
+          testCases: Array.isArray(ex.testCases) ? ex.testCases : []
+        }]);
       }
     }
   }, [selectedDriveId, exams]);
@@ -176,9 +243,10 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
 
   const activeDrive = drives.find(d => d.id === selectedDriveId) || drives[0];
 
-  const handleToggleGoLive = async (targetLiveState) => {
+  const saveExamToFirestore = async (liveStateOverride) => {
     if (!selectedDriveId || !activeDrive) return;
     setSaving(true);
+    const isLiveTarget = liveStateOverride !== undefined ? liveStateOverride : examForm.isLive;
 
     try {
       let registeredRolls = [];
@@ -187,29 +255,50 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
         registeredRolls = appSnap.docs.map(doc => doc.id || doc.data().rollNo).filter(Boolean);
       }
 
+      const activeQ = codingQuestions[activeTechQIndex] || codingQuestions[0];
+      const dur = parseInt(examForm.durationMinutes, 10) || (examForm.examType === 'technical' ? 45 : 30);
+      const aptDur = parseInt(examForm.aptitudeDurationMinutes, 10) || 30;
+      const techDur = parseInt(examForm.technicalDurationMinutes, 10) || 45;
+
       await setDoc(doc(db, 'exams', selectedDriveId), {
         driveId: selectedDriveId,
         driveCompany: activeDrive.company,
         driveRole: activeDrive.role,
         title: examForm.title,
         examType: examForm.examType,
-        durationMinutes: parseInt(examForm.durationMinutes, 10) || 30,
+        durationMinutes: dur,
+        aptitudeDurationMinutes: aptDur,
+        technicalDurationMinutes: techDur,
         passMark: parseInt(examForm.passMark, 10) || 60,
-        isLive: targetLiveState,
+        isLive: isLiveTarget,
         registeredStudentRolls: registeredRolls,
         questions: questions,
         techQuestions: techQuestions,
-        testCases: testCases,
-        techProblem: techProblem,
+        codingQuestions: codingQuestions,
+        testCases: activeQ?.testCases || [],
+        techProblem: {
+          title: activeQ?.title || '',
+          description: activeQ?.description || '',
+          sampleInput: activeQ?.sampleInput || '',
+          sampleOutput: activeQ?.sampleOutput || '',
+        },
         updatedAt: new Date().toISOString(),
       });
 
-      setExamForm(p => ({ ...p, isLive: targetLiveState }));
+      setExamForm(p => ({ ...p, isLive: isLiveTarget }));
     } catch (err) {
-      console.error(err);
+      console.error('Save exam error:', err);
     }
-
     setSaving(false);
+  };
+
+  const handleToggleGoLive = async (targetLiveState) => {
+    await saveExamToFirestore(targetLiveState);
+  };
+
+  const handleSaveConfig = async () => {
+    await saveExamToFirestore(examForm.isLive);
+    alert('Exam configuration & question bank successfully saved to database!');
   };
 
   const handleAddQuestion = (e) => {
@@ -244,17 +333,74 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
     setNewTechAnsIndex(0);
   };
 
+  const handleAddCodingQuestion = () => {
+    const newQ = {
+      id: Date.now(),
+      title: `Coding Problem Statement #${codingQuestions.length + 1}`,
+      description: 'Write a program to solve the given technical problem instructions...',
+      sampleInput: 'sample_input',
+      sampleOutput: 'sample_output',
+      testCases: [
+        {
+          name: 'Sample Visible Test Case',
+          input: 'sample_input',
+          expectedOutput: 'sample_output',
+          isHidden: false
+        }
+      ]
+    };
+    const updated = [...codingQuestions, newQ];
+    setCodingQuestions(updated);
+    setActiveTechQIndex(updated.length - 1);
+  };
+
+  const handleDeleteCodingQuestion = (indexToDelete) => {
+    if (codingQuestions.length <= 1) {
+      alert('At least one coding question must remain in the question bank pool.');
+      return;
+    }
+    const updated = codingQuestions.filter((_, idx) => idx !== indexToDelete);
+    setCodingQuestions(updated);
+    if (activeTechQIndex >= updated.length) {
+      setActiveTechQIndex(updated.length - 1);
+    }
+  };
+
+  const handleUpdateCurrentCodingQ = (field, value) => {
+    setCodingQuestions(prev => prev.map((q, idx) => {
+      if (idx === activeTechQIndex) {
+        return { ...q, [field]: value };
+      }
+      return q;
+    }));
+  };
+
   const handleAddTestCase = (e) => {
     e.preventDefault();
     if (!newTC.input.trim() || !newTC.expectedOutput.trim()) return;
+    const currentQ = codingQuestions[activeTechQIndex] || codingQuestions[0];
     const tcToAdd = {
-      name: newTC.name.trim() || `Test Case ${testCases.length + 1}`,
+      name: newTC.name.trim() || `Test Case ${(currentQ?.testCases?.length || 0) + 1}`,
       input: newTC.input.trim(),
       expectedOutput: newTC.expectedOutput.trim(),
       isHidden: !!newTC.isHidden,
     };
-    setTestCases(prev => [...prev, tcToAdd]);
+    setCodingQuestions(prev => prev.map((q, idx) => {
+      if (idx === activeTechQIndex) {
+        return { ...q, testCases: [...(q.testCases || []), tcToAdd] };
+      }
+      return q;
+    }));
     setNewTC({ name: '', input: '', expectedOutput: '', isHidden: false });
+  };
+
+  const handleDeleteTestCase = (tcIdx) => {
+    setCodingQuestions(prev => prev.map((q, idx) => {
+      if (idx === activeTechQIndex) {
+        return { ...q, testCases: (q.testCases || []).filter((_, i) => i !== tcIdx) };
+      }
+      return q;
+    }));
   };
 
   const handleSaveOfflineScore = async (e) => {
@@ -532,15 +678,26 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => handleToggleGoLive(!examForm.isLive)}
-              disabled={saving}
-              className={`btn ${examForm.isLive ? 'btn-secondary' : 'btn-success'}`}
-              style={{ fontWeight: 700, fontSize: '0.8rem', padding: '0.55rem 1.25rem' }}
-            >
-              {saving ? 'Updating...' : examForm.isLive ? 'Pause Exam' : 'Publish & Go Live'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={handleSaveConfig}
+                disabled={saving}
+                className="btn btn-primary"
+                style={{ fontWeight: 700, fontSize: '0.8rem', padding: '0.55rem 1.25rem' }}
+              >
+                {saving ? 'Saving...' : '💾 Save Config'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleToggleGoLive(!examForm.isLive)}
+                disabled={saving}
+                className={`btn ${examForm.isLive ? 'btn-secondary' : 'btn-success'}`}
+                style={{ fontWeight: 700, fontSize: '0.8rem', padding: '0.55rem 1.25rem' }}
+              >
+                {saving ? 'Updating...' : examForm.isLive ? 'Pause Exam' : 'Publish & Go Live'}
+              </button>
+            </div>
           </div>
 
           {/* 3-Column Configuration Form Grid */}
@@ -561,15 +718,21 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
                 className="input-field"
                 style={{ background: '#0f172a', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.7)', padding: '0.6rem 0.85rem' }}
                 value={examForm.examType}
-                onChange={e => setExamForm({ ...examForm, examType: e.target.value })}
+                onChange={e => {
+                  const newType = e.target.value;
+                  const targetDur = newType === 'technical' ? (examForm.technicalDurationMinutes || 45) : (examForm.aptitudeDurationMinutes || 30);
+                  setExamForm({ ...examForm, examType: newType, durationMinutes: targetDur });
+                }}
               >
-                <option value="aptitude" style={{ background: '#0f172a', color: '#f8fafc' }}>Round 1: Aptitude & Reasoning</option>
-                <option value="technical" style={{ background: '#0f172a', color: '#f8fafc' }}>Round 2: Technical & Coding Sandbox</option>
+                <option value="aptitude" style={{ background: '#0f172a', color: '#f8fafc' }}>Round 1: Aptitude & Reasoning (Default 30 Min)</option>
+                <option value="technical" style={{ background: '#0f172a', color: '#f8fafc' }}>Round 2: Technical & Coding Sandbox (Default 45 Min)</option>
               </select>
             </div>
 
             <div className="input-group">
-              <label style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#cbd5e1' }}>Timer Duration (Minutes)</label>
+              <label style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#cbd5e1' }}>
+                Timer Duration ({examForm.examType === 'technical' ? 'Technical' : 'Aptitude'} Minutes)
+              </label>
               <input
                 className="input-field"
                 style={{ background: 'rgba(2, 6, 23, 0.7)', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.7)', padding: '0.6rem 0.85rem', fontFamily: 'var(--font-mono)' }}
@@ -577,7 +740,14 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
                 min="5"
                 max="180"
                 value={examForm.durationMinutes}
-                onChange={e => setExamForm({ ...examForm, durationMinutes: e.target.value })}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (examForm.examType === 'technical') {
+                    setExamForm({ ...examForm, durationMinutes: val, technicalDurationMinutes: val });
+                  } else {
+                    setExamForm({ ...examForm, durationMinutes: val, aptitudeDurationMinutes: val });
+                  }
+                }}
               />
             </div>
           </div>
@@ -643,7 +813,7 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
                 <svg style={{ width: 14, height: 14, minWidth: 14 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                 </svg>
-                Technical Coding Test Cases ({testCases.length})
+                Technical Coding Question Pool ({codingQuestions.length} Problems)
               </button>
 
               <button
@@ -824,123 +994,234 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
               </div>
             )}
 
-            {/* SUB-TAB 2: Technical Coding Problem & Test Cases */}
+            {/* SUB-TAB 2: Technical Coding Question Bank & Test Cases */}
             {qBuilderSubTab === 'technical_coding' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                {/* Problem Statement Config Card */}
-                <div style={{ background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(99, 102, 241, 0.35)', padding: '1.25rem', borderRadius: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <h4 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#818cf8', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <svg style={{ width: 14, height: 14 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                      </svg>
-                      Technical Round Coding Problem Statement
-                    </h4>
-                    <span className="badge badge-primary" style={{ fontSize: '0.7rem' }}>Standard Round 2 Coding Task</span>
+                
+                {/* Question Pool Carousel Header & Selector */}
+                <div style={{ background: '#070c18', border: '1px solid rgba(99, 102, 241, 0.4)', borderRadius: '0.85rem', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span className="badge badge-primary" style={{ fontWeight: 800, fontSize: '0.7rem' }}>
+                        🎯 Coding Question Bank Pool ({codingQuestions.length} Problems)
+                      </span>
+                      <span style={{ fontSize: '0.725rem', color: '#94a3b8' }}>
+                        Each candidate receives a randomized problem from this pool
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddCodingQuestion}
+                      className="btn btn-primary btn-xs"
+                      style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                    >
+                      <span>+ Add Problem to Bank</span>
+                    </button>
                   </div>
 
-                  <div className="input-group">
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Problem Title</label>
-                    <input
-                      className="input-field"
-                      style={{ background: 'rgba(2, 6, 23, 0.7)', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)', fontWeight: 600 }}
-                      value={techProblem.title}
-                      onChange={e => setTechProblem({ ...techProblem, title: e.target.value })}
-                      placeholder="e.g. 1 to 100 Number Sequence Generator & Filter"
-                    />
-                  </div>
-
-                  <div className="input-group">
-                    <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Problem Description & Input Format Instructions</label>
-                    <textarea
-                      className="input-field"
-                      rows={3}
-                      style={{ background: 'rgba(2, 6, 23, 0.7)', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)', resize: 'vertical', fontSize: '0.75rem', lineHeight: 1.5 }}
-                      value={techProblem.description}
-                      onChange={e => setTechProblem({ ...techProblem, description: e.target.value })}
-                    />
+                  {/* Question Selector Tabs */}
+                  <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
+                    {codingQuestions.map((q, idx) => {
+                      const isSel = idx === activeTechQIndex;
+                      return (
+                        <button
+                          key={q.id || idx}
+                          type="button"
+                          onClick={() => setActiveTechQIndex(idx)}
+                          style={{
+                            background: isSel ? 'rgba(99, 102, 241, 0.28)' : 'rgba(15, 23, 42, 0.7)',
+                            color: isSel ? '#c7d2fe' : '#94a3b8',
+                            border: isSel ? '1px solid rgba(99, 102, 241, 0.6)' : '1px solid rgba(51, 65, 85, 0.6)',
+                            padding: '0.45rem 0.85rem',
+                            borderRadius: '0.6rem',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            fontWeight: isSel ? 700 : 500,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          <span style={{ background: isSel ? '#6366f1' : 'rgba(51,65,85,0.8)', color: '#ffffff', borderRadius: '0.35rem', padding: '0.1rem 0.4rem', fontSize: '0.65rem', fontWeight: 800 }}>
+                            P{idx + 1}
+                          </span>
+                          <span>{q.title ? (q.title.length > 25 ? q.title.substring(0, 25) + '...' : q.title) : `Problem ${idx + 1}`}</span>
+                          <span style={{ fontSize: '0.65rem', color: isSel ? '#818cf8' : '#64748b' }}>
+                            ({q.testCases?.length || 0} TCs)
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* Configured Test Cases List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#cbd5e1' }}>
-                      Configured Test Cases ({testCases.length})
-                    </span>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Evaluated against candidate submitted code</span>
-                  </div>
+                {/* Selected Question Details Form Card */}
+                {codingQuestions[activeTechQIndex] && (
+                  <div style={{ background: 'rgba(15, 23, 42, 0.75)', border: '1px solid rgba(99, 102, 241, 0.35)', padding: '1.25rem', borderRadius: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <h4 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#818cf8', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <svg style={{ width: 14, height: 14 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                        </svg>
+                        Editing Problem #{activeTechQIndex + 1} Statement
+                      </h4>
 
-                  {testCases.length === 0 ? (
-                    <p style={{ fontSize: '0.75rem', color: '#64748b', fontStyle: 'italic', padding: '1.5rem', textAlign: 'center', border: '1px dashed rgba(51, 65, 85, 0.6)', borderRadius: '0.75rem' }}>
-                      No coding test cases configured yet.
-                    </p>
-                  ) : (
-                    testCases.map((tc, idx) => (
-                      <div
-                        key={idx}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCodingQuestion(activeTechQIndex)}
                         style={{
-                          background: 'rgba(15, 23, 42, 0.85)',
-                          border: `1px solid ${tc.isHidden ? 'rgba(245, 158, 11, 0.4)' : 'rgba(99, 102, 241, 0.35)'}`,
-                          borderRadius: '0.85rem',
-                          padding: '1rem 1.1rem',
+                          background: 'rgba(244, 63, 94, 0.12)',
+                          border: '1px solid rgba(244, 63, 94, 0.3)',
+                          color: '#fb7185',
+                          padding: '0.3rem 0.6rem',
+                          borderRadius: '0.5rem',
+                          cursor: 'pointer',
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
                           display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.6rem',
-                          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)',
+                          alignItems: 'center',
+                          gap: '0.25rem',
                         }}
+                        title="Delete Problem from Pool"
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-                            <span className="badge badge-primary" style={{ fontFamily: 'var(--font-mono)', fontWeight: 800 }}>TC #{idx + 1}</span>
-                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc' }}>{tc.name || `Test Case ${idx + 1}`}</span>
-                            <span className={`badge ${tc.isHidden ? 'badge-warning' : 'badge-success'}`} style={{ fontSize: '0.65rem' }}>
-                              {tc.isHidden ? '🔒 HIDDEN TC' : '👁 VISIBLE TC'}
-                            </span>
+                        <svg style={{ width: 13, height: 13 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete Problem #{activeTechQIndex + 1}
+                      </button>
+                    </div>
+
+                    <div className="input-group">
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Problem Title *</label>
+                      <input
+                        className="input-field"
+                        style={{ background: 'rgba(2, 6, 23, 0.7)', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)', fontWeight: 600 }}
+                        value={codingQuestions[activeTechQIndex].title || ''}
+                        onChange={e => handleUpdateCurrentCodingQ('title', e.target.value)}
+                        placeholder="e.g. 1 to 100 Number Sequence Generator & Filter"
+                      />
+                    </div>
+
+                    <div className="input-group">
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600 }}>Problem Description & Input Format Instructions *</label>
+                      <textarea
+                        className="input-field"
+                        rows={3}
+                        style={{ background: 'rgba(2, 6, 23, 0.7)', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)', resize: 'vertical', fontSize: '0.75rem', lineHeight: 1.5 }}
+                        value={codingQuestions[activeTechQIndex].description || ''}
+                        onChange={e => handleUpdateCurrentCodingQ('description', e.target.value)}
+                        placeholder="Detailed problem description and input instructions..."
+                      />
+                    </div>
+
+                    <div className="grid grid-2" style={{ gap: '0.75rem' }}>
+                      <div className="input-group">
+                        <label style={{ fontSize: '0.7rem' }}>Sample Input Example</label>
+                        <input
+                          className="input-field"
+                          style={{ background: 'rgba(2, 6, 23, 0.7)', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
+                          value={codingQuestions[activeTechQIndex].sampleInput || ''}
+                          onChange={e => handleUpdateCurrentCodingQ('sampleInput', e.target.value)}
+                          placeholder="e.g. even"
+                        />
+                      </div>
+                      <div className="input-group">
+                        <label style={{ fontSize: '0.7rem' }}>Sample Output Example</label>
+                        <input
+                          className="input-field"
+                          style={{ background: 'rgba(2, 6, 23, 0.7)', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}
+                          value={codingQuestions[activeTechQIndex].sampleOutput || ''}
+                          onChange={e => handleUpdateCurrentCodingQ('sampleOutput', e.target.value)}
+                          placeholder="e.g. 2 4 6 8 10..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Configured Test Cases List for Selected Problem */}
+                {codingQuestions[activeTechQIndex] && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#cbd5e1' }}>
+                        Test Cases for Problem #{activeTechQIndex + 1} ({codingQuestions[activeTechQIndex].testCases?.length || 0})
+                      </span>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Evaluated against candidate submitted code</span>
+                    </div>
+
+                    {!codingQuestions[activeTechQIndex].testCases || codingQuestions[activeTechQIndex].testCases.length === 0 ? (
+                      <p style={{ fontSize: '0.75rem', color: '#64748b', fontStyle: 'italic', padding: '1.5rem', textAlign: 'center', border: '1px dashed rgba(51, 65, 85, 0.6)', borderRadius: '0.75rem' }}>
+                        No test cases added for this problem yet. Add test cases below.
+                      </p>
+                    ) : (
+                      codingQuestions[activeTechQIndex].testCases.map((tc, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            background: 'rgba(15, 23, 42, 0.85)',
+                            border: `1px solid ${tc.isHidden ? 'rgba(245, 158, 11, 0.4)' : 'rgba(99, 102, 241, 0.35)'}`,
+                            borderRadius: '0.85rem',
+                            padding: '1rem 1.1rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.6rem',
+                            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                              <span className="badge badge-primary" style={{ fontFamily: 'var(--font-mono)', fontWeight: 800 }}>TC #{idx + 1}</span>
+                              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#f8fafc' }}>{tc.name || `Test Case ${idx + 1}`}</span>
+                              <span className={`badge ${tc.isHidden ? 'badge-warning' : 'badge-success'}`} style={{ fontSize: '0.65rem' }}>
+                                {tc.isHidden ? '🔒 HIDDEN TC' : '👁 VISIBLE TC'}
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteTestCase(idx)}
+                              style={{
+                                background: 'rgba(244, 63, 94, 0.12)',
+                                border: '1px solid rgba(244, 63, 94, 0.3)',
+                                color: '#fb7185',
+                                padding: '0.35rem 0.5rem',
+                                borderRadius: '0.5rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                              }}
+                              title="Delete Test Case"
+                            >
+                              <svg style={{ width: 14, height: 14 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => setTestCases(testCases.filter((_, i) => i !== idx))}
-                            style={{
-                              background: 'rgba(244, 63, 94, 0.12)',
-                              border: '1px solid rgba(244, 63, 94, 0.3)',
-                              color: '#fb7185',
-                              padding: '0.35rem 0.5rem',
-                              borderRadius: '0.5rem',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                            }}
-                            title="Delete Test Case"
-                          >
-                            <svg style={{ width: 14, height: 14 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.75rem', fontSize: '0.75rem', background: '#070c18', padding: '0.6rem 0.85rem', borderRadius: '0.6rem', border: '1px solid rgba(51, 65, 85, 0.6)' }}>
-                          <div>
-                            <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, marginBottom: '0.2rem' }}>Input Argument:</span>
-                            <code style={{ color: '#f59e0b', background: '#020617', padding: '0.2rem 0.5rem', borderRadius: '0.35rem', border: '1px solid rgba(51, 65, 85, 0.8)', fontSize: '0.725rem' }}>{tc.input}</code>
-                          </div>
-                          <div>
-                            <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, marginBottom: '0.2rem' }}>Expected Output String:</span>
-                            <div style={{ color: '#34d399', background: '#020617', padding: '0.2rem 0.5rem', borderRadius: '0.35rem', border: '1px solid rgba(51, 65, 85, 0.8)', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', maxHeight: '50px', overflowY: 'auto', wordBreak: 'break-all' }}>
-                              {tc.expectedOutput}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.75rem', fontSize: '0.75rem', background: '#070c18', padding: '0.6rem 0.85rem', borderRadius: '0.6rem', border: '1px solid rgba(51, 65, 85, 0.6)' }}>
+                            <div>
+                              <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, marginBottom: '0.2rem' }}>Input Argument:</span>
+                              <code style={{ color: '#f59e0b', background: '#020617', padding: '0.2rem 0.5rem', borderRadius: '0.35rem', border: '1px solid rgba(51, 65, 85, 0.8)', fontSize: '0.725rem' }}>{tc.input}</code>
+                            </div>
+                            <div>
+                              <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, marginBottom: '0.2rem' }}>Expected Output String:</span>
+                              <div style={{ color: '#34d399', background: '#020617', padding: '0.2rem 0.5rem', borderRadius: '0.35rem', border: '1px solid rgba(51, 65, 85, 0.8)', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', maxHeight: '50px', overflowY: 'auto', wordBreak: 'break-all' }}>
+                                {tc.expectedOutput}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                      ))
+                    )}
+                  </div>
+                )}
 
                 {/* Add Test Case Form */}
                 <form onSubmit={handleAddTestCase} style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid rgba(51, 65, 85, 0.7)', padding: '1.25rem', borderRadius: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  <h4 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#e2e8f0', margin: 0 }}>Add Technical Coding Test Case</h4>
+                  <h4 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#e2e8f0', margin: 0 }}>Add Technical Test Case to Problem #{activeTechQIndex + 1}</h4>
                   
                   <div className="input-group">
                     <label style={{ fontSize: '0.75rem' }}>Test Case Name / Description</label>
@@ -989,7 +1270,7 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
                       Mark as Hidden Test Case (evaluated strictly on final code submit)
                     </label>
                     <button type="submit" className="btn btn-secondary btn-sm" style={{ fontWeight: 700 }}>
-                      + Add Test Case
+                      + Add Test Case to Problem #{activeTechQIndex + 1}
                     </button>
                   </div>
                 </form>
