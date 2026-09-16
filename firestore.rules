@@ -7,16 +7,22 @@ service cloud.firestore {
       return request.auth != null; 
     }
 
-    // Returns user role safely checking token custom claim or user doc
-    function getUserRole() {
-      return request.auth != null && request.auth.token != null && request.auth.token.role != null
-        ? request.auth.token.role
-        : (request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-            ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-            : null);
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Role check helper (supports case insensitivity & fallback)
+    // Safe user role detection from auth token custom claims or user profile document
+    function getUserRole() {
+      return isAuthenticated()
+        ? (request.auth.token != null && request.auth.token.role != null
+            ? request.auth.token.role
+            : (exists(/databases/$(database)/documents/users/$(request.auth.uid))
+                ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+                : 'student'))
+        : null;
+    }
+
+    // Role checking helper with case insensitivity
     function isRole(r) { 
       return isAuthenticated() && (
         getUserRole() == r || 
@@ -25,64 +31,87 @@ service cloud.firestore {
       ); 
     }
 
-    // Global Fallback for Authenticated Users (prevents permission denied across all features)
-    match /{document=**} {
-      allow read, write: if isAuthenticated();
+    function isTPO() {
+      return isRole('tpo') || isRole('admin');
     }
 
-    // 1. Users & Subcollections
+    function isRecruiter() {
+      return isRole('recruiter') || isTPO();
+    }
+
+    // 1. User Profiles & Subcollections
     match /users/{uid} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create: if isOwner(uid) || isTPO();
+      allow update: if isOwner(uid) || isTPO() || isRecruiter();
+      allow delete: if isTPO();
       
       match /{allSubcollections=**} {
         allow read, write: if isAuthenticated();
       }
     }
 
-    // 2. Placement Drives & Applications / Notes / Logs
+    // 2. Placement Drives & Applications / Subcollections
     match /drives/{driveId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isRecruiter() || isTPO();
+
+      match /applications/{appId} {
+        allow read: if isAuthenticated();
+        allow create, update: if isAuthenticated();
+        allow delete: if isTPO() || isRecruiter();
+      }
 
       match /{allSubcollections=**} {
         allow read, write: if isAuthenticated();
       }
     }
 
-    // 3. Notifications (Drive Announcements, Reminders, Exams)
+    // 3. Notifications & Announcements
     match /notifications/{notifId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isRecruiter() || isTPO();
     }
 
-    // 4. Proctored Exams & Question Banks
+    // 4. Proctored Exams, Question Banks & Exam Results
     match /exams/{examId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isTPO() || isRecruiter();
     }
 
     match /examResults/{resultId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+      allow delete: if isTPO();
     }
 
     match /question_banks/{bankId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isTPO() || isRecruiter();
     }
 
-    // 5. Live Interview Rooms & Handshakes
+    // 5. Live Interview Rooms & Schedules
     match /interviews/{interviewId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isRecruiter() || isTPO();
     }
 
     // 6. Student Directory & Credentials Vault
     match /students/{rollNo} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isTPO();
     }
 
     match /credentials/{credId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isTPO();
     }
 
     // 7. Recruiters & Analytics
     match /recruiters/{recruiterId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      allow write: if isRecruiter() || isTPO();
     }
   }
 }
+

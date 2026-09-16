@@ -51,6 +51,7 @@ export default function StudentDashboard() {
   const [activity, setActivity] = useState([]);
   const [appliedDriveIds, setAppliedDriveIds] = useState([]);
   const [liveExams, setLiveExams] = useState([]);
+  const [studentExamResults, setStudentExamResults] = useState({});
   const [selectedExamModal, setSelectedExamModal] = useState(null);
   const [selectedDrive, setSelectedDrive] = useState(null);
 
@@ -61,6 +62,21 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     if (!user) return;
+
+    const unsubResults = onSnapshot(collection(db, 'examResults'), (snap) => {
+      if (!snap.empty) {
+        const myResults = {};
+        snap.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.rollNo === rollNo || data.rollNumber === rollNo) {
+            const driveId = data.driveId || doc.id.split('_')[0] || doc.id;
+            myResults[driveId] = data;
+          }
+        });
+        setStudentExamResults(myResults);
+      }
+    });
+
     const unsubDrives = onSnapshot(collection(db, 'drives'), async (snap) => {
       if (!snap.empty) {
         const fsDrives = snap.docs.map(d => ({
@@ -131,7 +147,7 @@ export default function StudentDashboard() {
         setLiveExams(liveList);
       } else { setLiveExams([]); }
     });
-    return () => { unsubDrives(); unsubExams(); };
+    return () => { unsubResults(); unsubDrives(); unsubExams(); };
   }, [user, rollNo, profile, appliedDriveIds.length]);
 
   const handleLaunchExam = (exam) => {
@@ -221,11 +237,14 @@ export default function StudentDashboard() {
 
           <div className="flex flex-col gap-3">
             {liveExams.map(ex => {
-              const hasTechAccess = !!(profile?.qualifiedForTechnical || profile?.qualifiedForRound2 || profile?.technicalAccessGrantedAt);
-              const aptitudeFinished = !!(profile?.aptitudeCompleted);
-              const technicalFinished = !!(profile?.technicalCompleted);
-              const isTechDisqualified = !!(profile?.technicalDisqualified || (profile?.technicalCompleted && profile?.technicalScore === 0 && !profile?.technicalPassed && profile?.disqualificationReason));
-              const isTechPassed = !!(profile?.technicalPassed || profile?.qualifiedForRound3);
+              const driveResult = studentExamResults[ex.id] || studentExamResults[ex.driveId] || {};
+              const isCurrentDrive = profile?.currentExamDriveId === ex.id || profile?.currentExamDriveId === ex.driveId;
+
+              const hasTechAccess = !!(driveResult.qualifiedForTechnical || driveResult.qualifiedForRound2 || (isCurrentDrive && (profile?.qualifiedForTechnical || profile?.qualifiedForRound2)));
+              const aptitudeFinished = !!(driveResult.aptitudeCompleted || (driveResult.round === 1 && driveResult.score !== undefined) || (isCurrentDrive && profile?.aptitudeCompleted));
+              const technicalFinished = !!(driveResult.technicalCompleted || (driveResult.round === 2 && driveResult.testCasesPassed !== undefined) || (isCurrentDrive && profile?.technicalCompleted));
+              const isTechDisqualified = !!(driveResult.isDisqualified || driveResult.technicalDisqualified || (isCurrentDrive && profile?.technicalDisqualified));
+              const isTechPassed = !!(driveResult.qualifiedForRound3 || driveResult.status === 'PASSED' || driveResult.technicalPassed || (isCurrentDrive && profile?.technicalPassed));
 
               if (technicalFinished) {
                 if (isTechDisqualified) {
@@ -236,7 +255,7 @@ export default function StudentDashboard() {
                           {ex.driveCompany} — Proctored Screening Terminated
                         </div>
                         <div className="text-xs text-muted mt-1">
-                          Exam Disqualified due to Anti-Malpractice Violation ({profile?.disqualificationReason || 'Tab switch / Loss of window focus'}).
+                          Exam Disqualified due to Anti-Malpractice Violation ({driveResult.disqualificationReason || profile?.disqualificationReason || 'Tab switch / Loss of window focus'}).
                         </div>
                       </div>
                       <span className="badge badge-error" style={{ fontWeight: 800, padding: '0.5rem 1rem' }}>
@@ -254,7 +273,7 @@ export default function StudentDashboard() {
                           {ex.driveCompany} — Technical Assessment Complete
                         </div>
                         <div className="text-xs text-muted mt-1">
-                          Score: {profile?.technicalScore ?? 0}% ({profile?.testCasesPassed ?? 0} / {profile?.totalTestCases ?? 3} Test Cases Passed). Status: FAILED.
+                          Score: {driveResult.technicalScore ?? driveResult.score ?? profile?.technicalScore ?? 0}% ({driveResult.testCasesPassed ?? profile?.testCasesPassed ?? 0} / {driveResult.totalTestCases ?? profile?.totalTestCases ?? 3} Test Cases Passed). Status: FAILED.
                         </div>
                       </div>
                       <span className="badge badge-error" style={{ fontWeight: 800, padding: '0.5rem 1rem' }}>
@@ -271,7 +290,7 @@ export default function StudentDashboard() {
                         {ex.driveCompany} — Proctored Screening Complete
                       </div>
                       <div className="text-xs text-muted mt-1">
-                        All screening rounds completed successfully ({profile?.testCasesPassed ?? 3} / {profile?.totalTestCases ?? 3} Test Cases Passed). You are qualified for Round 3 Interview Call.
+                        All screening rounds completed successfully ({driveResult.testCasesPassed ?? profile?.testCasesPassed ?? 3} / {driveResult.totalTestCases ?? profile?.totalTestCases ?? 3} Test Cases Passed). You are qualified for Round 3 Interview Call.
                       </div>
                     </div>
                     <span className="badge badge-success" style={{ fontWeight: 800, padding: '0.5rem 1rem' }}>
@@ -304,7 +323,7 @@ export default function StudentDashboard() {
               }
 
               if (aptitudeFinished) {
-                const isAptPassed = profile?.aptitudePassed !== false;
+                const isAptPassed = (driveResult.aptitudePassed !== undefined ? driveResult.aptitudePassed : (profile?.aptitudePassed !== false));
                 if (!isAptPassed) {
                   return (
                     <div key={ex.id} className="activity-item" style={{ border: '1px solid rgba(244, 63, 94, 0.4)', background: 'rgba(244, 63, 94, 0.08)' }}>
@@ -313,7 +332,7 @@ export default function StudentDashboard() {
                           {ex.driveCompany} — Round 1 Aptitude Assessment
                         </div>
                         <div className="text-xs text-muted mt-1">
-                          Score: {profile?.aptitudeScore ?? 0}%. Status: FAILED (Did not meet minimum cutoff mark).
+                          Score: {driveResult.score ?? profile?.aptitudeScore ?? 0}%. Status: FAILED (Did not meet minimum cutoff mark).
                         </div>
                       </div>
                       <span className="badge badge-error" style={{ fontWeight: 800, padding: '0.4rem 0.85rem' }}>
@@ -330,7 +349,7 @@ export default function StudentDashboard() {
                         {ex.driveCompany} — Round 1 Aptitude Completed
                       </div>
                       <div className="text-xs text-muted mt-1">
-                        Score Submitted: {profile?.aptitudeScore ?? 100}%. Awaiting TPO Round 2 Technical Access Grant.
+                        Score Submitted: {driveResult.score ?? profile?.aptitudeScore ?? 100}%. Awaiting TPO Round 2 Technical Access Grant.
                       </div>
                     </div>
                     <span className="badge badge-warning" style={{ fontWeight: 700, padding: '0.4rem 0.85rem' }}>
@@ -371,24 +390,33 @@ export default function StudentDashboard() {
           </div>
           <div className="flex flex-col gap-3">
             {drives.length === 0 && <div className="text-sm text-muted p-4 text-center">No active drives yet</div>}
-            {drives.map(d => (
-              <div key={d.id} className="activity-item">
-                <div style={{ width: '2.25rem', height: '2.25rem', borderRadius: 'var(--radius-lg)', background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.85rem', flexShrink: 0 }}>
-                  {d.company.charAt(0)}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>{d.company}</div>
-                  <div className="text-sm text-muted">{d.role}</div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ color: 'var(--success-400)', fontWeight: 600, fontSize: '0.9rem' }}>{formatCurrency(d.package)}</div>
-                    <div className="text-xs text-muted">{formatDate(d.date)}</div>
+            {drives.map(d => {
+              const isApplied = appliedDriveIds.includes(d.id);
+              return (
+                <div key={d.id} className="activity-item">
+                  <div style={{ width: '2.25rem', height: '2.25rem', borderRadius: 'var(--radius-lg)', background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.85rem', flexShrink: 0 }}>
+                    {d.company.charAt(0)}
                   </div>
-                  <button className="btn btn-primary btn-sm" onClick={() => setSelectedDrive(d)}>Apply</button>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600 }}>{d.company}</div>
+                    <div className="text-sm text-muted">{d.role}</div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ color: 'var(--success-400)', fontWeight: 600, fontSize: '0.9rem' }}>{formatCurrency(d.package)}</div>
+                      <div className="text-xs text-muted">{formatDate(d.date)}</div>
+                    </div>
+                    {isApplied ? (
+                      <span className="badge badge-success" style={{ fontWeight: 700, padding: '0.35rem 0.75rem', fontSize: '0.75rem' }}>
+                        ✓ Applied
+                      </span>
+                    ) : (
+                      <button className="btn btn-primary btn-sm" onClick={() => setSelectedDrive(d)}>Apply</button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -428,7 +456,19 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {selectedDrive && <ApplyDriveModal drive={selectedDrive} onClose={() => setSelectedDrive(null)} onSuccess={() => setStats(p => ({ ...p, apps: p.apps + 1 }))} />}
+      {selectedDrive && (
+        <ApplyDriveModal
+          drive={selectedDrive}
+          studentProfile={profile}
+          onClose={() => setSelectedDrive(null)}
+          onSuccess={() => {
+            setStats(p => ({ ...p, apps: p.apps + 1 }));
+            if (selectedDrive?.id) {
+              setAppliedDriveIds(prev => Array.from(new Set([...prev, selectedDrive.id])));
+            }
+          }}
+        />
+      )}
       {selectedExamModal && <PreExamModal examData={selectedExamModal} onClose={() => setSelectedExamModal(null)} onStartExam={handleLaunchExam} />}
     </div>
   );

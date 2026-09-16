@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { db, collection, onSnapshot, doc, setDoc, getDocs, updateDoc } from '../lib/firebase';
 import { exportResultsToCSV, exportResultsToPDF } from '../lib/exportUtils';
 
@@ -27,13 +28,9 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
   });
 
   const [questions, setQuestions] = useState([
-    { id: 1, q: 'A train 240 m long passes a pole in 24 seconds. How long will it take to pass a platform 650 m long?', opts: ['65 sec', '89 sec', '100 sec', '150 sec'], ans: 1 },
-    { id: 2, q: 'If LOGIC is coded as BHODK, how is CLERK coded?', opts: ['FMDQJ', 'JQDMF', 'EKQBJ', 'QJMFD'], ans: 0 },
-    { id: 3, q: 'Find the odd one out: 35, 49, 63, 77, 85, 91', opts: ['49', '85', '91', '77'], ans: 1 },
-  ]);
-
-  // Technical MCQs & Core CS Questions
-  const [techQuestions, setTechQuestions] = useState([
+    { id: 1, q: 'A train 240 m long passes a pole in 24 seconds. How long will it take to pass a platform 650 m long?', opts: ['65 sec', '89 sec', '100 sec', '150 sec'], ans: 1, topic: 'Aptitude' },
+    { id: 2, q: 'If LOGIC is coded as BHODK, how is CLERK coded?', opts: ['FMDQJ', 'JQDMF', 'EKQBJ', 'QJMFD'], ans: 0, topic: 'Reasoning' },
+    { id: 3, q: 'Find the odd one out: 35, 49, 63, 77, 85, 91', opts: ['49', '85', '91', '77'], ans: 1, topic: 'Quantitative' },
     { id: 101, q: 'What is the worst-case time complexity of QuickSort algorithm?', opts: ['O(N)', 'O(N log N)', 'O(N²)', 'O(log N)'], ans: 2, topic: 'Algorithms' },
     { id: 102, q: 'Which data structure follows the LIFO (Last In First Out) principle?', opts: ['Queue', 'Stack', 'Linked List', 'Tree'], ans: 1, topic: 'Data Structures' },
   ]);
@@ -132,16 +129,18 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
 
   const [newTC, setNewTC] = useState({ name: '', input: '', expectedOutput: '', isHidden: false });
 
-  // New Aptitude question form state
+  // New MCQ question form state
   const [newQText, setNewQText] = useState('');
+  const [newQTopic, setNewQTopic] = useState('Aptitude');
   const [newOpts, setNewOpts] = useState(['', '', '', '']);
   const [newAnsIndex, setNewAnsIndex] = useState(0);
 
-  // New Technical question form state
-  const [newTechQText, setNewTechQText] = useState('');
-  const [newTechTopic, setNewTechTopic] = useState('Data Structures');
-  const [newTechOpts, setNewTechOpts] = useState(['', '', '', '']);
-  const [newTechAnsIndex, setNewTechAnsIndex] = useState(0);
+  // MCQ Inline Edit state
+  const [editingQId, setEditingQId] = useState(null);
+  const [editingQForm, setEditingQForm] = useState({ q: '', topic: 'Aptitude', opts: ['', '', '', ''], ans: 0 });
+  
+  // Unpublish Confirmation Modal state
+  const [showUnpublishModal, setShowUnpublishModal] = useState(false);
 
   // Interview & Offline Scoring Form State
   const [interviewForm, setInterviewForm] = useState({
@@ -191,11 +190,50 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
     };
   }, [selectedDriveId]);
 
+  const activeDrive = drives.find(d => d.id === selectedDriveId) || drives[0];
+
+  const saveExamToFirestoreDirect = async (targetDriveId, driveObj, formObj, qsObj, codingQsObj) => {
+    if (!targetDriveId || !driveObj) return;
+    try {
+      const activeQ = codingQsObj[0];
+      await setDoc(doc(db, 'exams', targetDriveId), {
+        driveId: targetDriveId,
+        driveCompany: driveObj.company,
+        driveRole: driveObj.role,
+        title: formObj.title,
+        examType: formObj.examType,
+        durationMinutes: formObj.durationMinutes,
+        aptitudeDurationMinutes: formObj.aptitudeDurationMinutes,
+        technicalDurationMinutes: formObj.technicalDurationMinutes,
+        passMark: formObj.passMark,
+        isLive: formObj.isLive,
+        registeredStudentRolls: [],
+        questions: qsObj,
+        techQuestions: [],
+        codingQuestions: codingQsObj,
+        testCases: activeQ?.testCases || [],
+        techProblem: {
+          title: activeQ?.title || '',
+          description: activeQ?.description || '',
+          sampleInput: activeQ?.sampleInput || '',
+          sampleOutput: activeQ?.sampleOutput || '',
+        },
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error('Direct save exam error:', err);
+    }
+  };
+
   useEffect(() => {
-    if (selectedDriveId && exams[selectedDriveId]) {
+    if (!selectedDriveId) return;
+
+    setActiveTechQIndex(0);
+
+    if (exams[selectedDriveId]) {
       const ex = exams[selectedDriveId];
       setExamForm({
-        title: ex.title || 'Placement Screening Exam',
+        title: ex.title || (activeDrive ? `${activeDrive.company} — ${activeDrive.role} Assessment` : 'Placement Screening Exam'),
         examType: ex.examType || 'aptitude',
         durationMinutes: ex.examType === 'technical' ? (ex.technicalDurationMinutes || ex.durationMinutes || 45) : (ex.aptitudeDurationMinutes || ex.durationMinutes || 30),
         aptitudeDurationMinutes: ex.aptitudeDurationMinutes || 30,
@@ -203,24 +241,80 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
         passMark: ex.passMark || 60,
         isLive: !!ex.isLive,
       });
+
       if (ex.questions && Array.isArray(ex.questions)) {
-        setQuestions(ex.questions);
+        let mergedQs = [...ex.questions];
+        if (ex.techQuestions && Array.isArray(ex.techQuestions)) {
+          ex.techQuestions.forEach(tq => {
+            if (!mergedQs.some(q => q.q === tq.q)) {
+              mergedQs.push({ ...tq, topic: tq.topic || 'Technical / CS' });
+            }
+          });
+        }
+        setQuestions(mergedQs);
+      } else {
+        setQuestions([]);
       }
-      if (ex.techQuestions && Array.isArray(ex.techQuestions)) {
-        setTechQuestions(ex.techQuestions);
-      }
+
       if (ex.codingQuestions && Array.isArray(ex.codingQuestions) && ex.codingQuestions.length > 0) {
         setCodingQuestions(ex.codingQuestions);
-      } else if (ex.techProblem) {
+      } else if (ex.techProblem && ex.techProblem.title) {
         setCodingQuestions([{
           id: 1,
-          title: ex.techProblem.title || '1 to 100 Number Sequence Generator & Filter',
-          description: ex.techProblem.description || "Write a program that processes numbers...",
-          sampleInput: ex.techProblem.sampleInput || 'even',
-          sampleOutput: ex.techProblem.sampleOutput || '2 4 6 8...',
+          title: ex.techProblem.title,
+          description: ex.techProblem.description || '',
+          sampleInput: ex.techProblem.sampleInput || '',
+          sampleOutput: ex.techProblem.sampleOutput || '',
           testCases: Array.isArray(ex.testCases) ? ex.testCases : []
         }]);
+      } else {
+        setCodingQuestions([]);
       }
+    } else if (activeDrive) {
+      // IF DRIVE DOES NOT HAVE AN EXAM DOCUMENT YET: Initialize drive-specific isolated questions & title!
+      const driveCompany = activeDrive.company || 'Company';
+      const driveRole = activeDrive.role || 'Role';
+      const initTitle = `${driveCompany} — ${driveRole} Assessment`;
+      
+      const initForm = {
+        title: initTitle,
+        examType: 'aptitude',
+        durationMinutes: 30,
+        aptitudeDurationMinutes: 30,
+        technicalDurationMinutes: 45,
+        passMark: 60,
+        isLive: false,
+      };
+
+      const initQuestions = [
+        { id: 1, q: `[${driveCompany}] A train 240 m long passes a pole in 24 seconds. How long will it take to pass a platform 650 m long?`, opts: ['65 sec', '89 sec', '100 sec', '150 sec'], ans: 1, topic: 'Aptitude' },
+        { id: 2, q: `[${driveCompany}] If LOGIC is coded as BHODK, how is CLERK coded?`, opts: ['FMDQJ', 'JQDMF', 'EKQBJ', 'QJMFD'], ans: 0, topic: 'Reasoning' },
+        { id: 3, q: `[${driveCompany}] What is the worst-case time complexity of QuickSort algorithm?`, opts: ['O(N)', 'O(N log N)', 'O(N²)', 'O(log N)'], ans: 2, topic: 'Algorithms' },
+      ];
+
+      const initCodingQuestions = [
+        {
+          id: 1,
+          title: `${driveCompany} Technical Coding Challenge #1`,
+          description: `Write a program for ${driveCompany} (${driveRole}) recruitment screening that processes input and returns matching output.`,
+          sampleInput: 'even',
+          sampleOutput: '2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 42 44 46 48 50 52 54 56 58 60 62 64 66 68 70 72 74 76 78 80 82 84 86 88 90 92 94 96 98 100',
+          testCases: [
+            {
+              name: 'Sample Visible Test Case',
+              input: 'even',
+              expectedOutput: '2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32 34 36 38 40 42 44 46 48 50 52 54 56 58 60 62 64 66 68 70 72 74 76 78 80 82 84 86 88 90 92 94 96 98 100',
+              isHidden: false
+            }
+          ]
+        }
+      ];
+
+      setExamForm(initForm);
+      setQuestions(initQuestions);
+      setCodingQuestions(initCodingQuestions);
+
+      saveExamToFirestoreDirect(selectedDriveId, activeDrive, initForm, initQuestions, initCodingQuestions);
     }
   }, [selectedDriveId, exams]);
 
@@ -241,11 +335,11 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
     return () => unsubResults();
   }, [selectedDriveId]);
 
-  const activeDrive = drives.find(d => d.id === selectedDriveId) || drives[0];
-
-  const saveExamToFirestore = async (liveStateOverride) => {
+  const saveExamToFirestore = async (customQuestions, customCodingQs, liveStateOverride) => {
     if (!selectedDriveId || !activeDrive) return;
     setSaving(true);
+    const qsToSave = customQuestions !== undefined ? customQuestions : questions;
+    const codingQsToSave = customCodingQs !== undefined ? customCodingQs : codingQuestions;
     const isLiveTarget = liveStateOverride !== undefined ? liveStateOverride : examForm.isLive;
 
     try {
@@ -255,7 +349,7 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
         registeredRolls = appSnap.docs.map(doc => doc.id || doc.data().rollNo).filter(Boolean);
       }
 
-      const activeQ = codingQuestions[activeTechQIndex] || codingQuestions[0];
+      const activeQ = codingQsToSave[activeTechQIndex] || codingQsToSave[0];
       const dur = parseInt(examForm.durationMinutes, 10) || (examForm.examType === 'technical' ? 45 : 30);
       const aptDur = parseInt(examForm.aptitudeDurationMinutes, 10) || 30;
       const techDur = parseInt(examForm.technicalDurationMinutes, 10) || 45;
@@ -272,9 +366,9 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
         passMark: parseInt(examForm.passMark, 10) || 60,
         isLive: isLiveTarget,
         registeredStudentRolls: registeredRolls,
-        questions: questions,
-        techQuestions: techQuestions,
-        codingQuestions: codingQuestions,
+        questions: qsToSave,
+        techQuestions: [],
+        codingQuestions: codingQsToSave,
         testCases: activeQ?.testCases || [],
         techProblem: {
           title: activeQ?.title || '',
@@ -293,11 +387,20 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
   };
 
   const handleToggleGoLive = async (targetLiveState) => {
-    await saveExamToFirestore(targetLiveState);
+    if (!targetLiveState) {
+      setShowUnpublishModal(true);
+    } else {
+      await saveExamToFirestore(undefined, undefined, true);
+    }
+  };
+
+  const handleConfirmUnpublish = async () => {
+    setShowUnpublishModal(false);
+    await saveExamToFirestore(undefined, undefined, false);
   };
 
   const handleSaveConfig = async () => {
-    await saveExamToFirestore(examForm.isLive);
+    await saveExamToFirestore(questions, codingQuestions, examForm.isLive);
     alert('Exam configuration & question bank successfully saved to database!');
   };
 
@@ -309,28 +412,56 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
       q: newQText.trim(),
       opts: newOpts.map((o, i) => o.trim() || `Option ${i + 1}`),
       ans: newAnsIndex,
+      topic: newQTopic.trim() || 'Aptitude',
     };
-    setQuestions(prev => [...prev, newQ]);
+    const updated = [...questions, newQ];
+    setQuestions(updated);
     setNewQText('');
+    setNewQTopic('Aptitude');
     setNewOpts(['', '', '', '']);
     setNewAnsIndex(0);
+    saveExamToFirestore(updated, codingQuestions);
   };
 
-  const handleAddTechQuestion = (e) => {
+  const handleStartEditQuestion = (qObj, idx) => {
+    setEditingQId(qObj.id || idx);
+    setEditingQForm({
+      q: qObj.q || '',
+      topic: qObj.topic || 'Aptitude',
+      opts: Array.isArray(qObj.opts) ? [...qObj.opts] : ['', '', '', ''],
+      ans: qObj.ans || 0,
+    });
+  };
+
+  const handleCancelEditQuestion = () => {
+    setEditingQId(null);
+    setEditingQForm({ q: '', topic: 'Aptitude', opts: ['', '', '', ''], ans: 0 });
+  };
+
+  const handleSaveEditedQuestion = (e, targetIdOrIdx) => {
     e.preventDefault();
-    if (!newTechQText.trim()) return;
-    const newQ = {
-      id: Date.now(),
-      q: newTechQText.trim(),
-      opts: newTechOpts.map((o, i) => o.trim() || `Option ${i + 1}`),
-      ans: newTechAnsIndex,
-      topic: newTechTopic.trim() || 'Technical',
-    };
-    setTechQuestions(prev => [...prev, newQ]);
-    setNewTechQText('');
-    setNewTechTopic('Data Structures');
-    setNewTechOpts(['', '', '', '']);
-    setNewTechAnsIndex(0);
+    if (!editingQForm.q.trim()) return;
+    const updated = questions.map((q, idx) => {
+      if ((q.id || idx) === targetIdOrIdx) {
+        return {
+          ...q,
+          q: editingQForm.q.trim(),
+          topic: editingQForm.topic.trim() || 'Aptitude',
+          opts: editingQForm.opts.map((o, i) => o.trim() || `Option ${i + 1}`),
+          ans: editingQForm.ans,
+        };
+      }
+      return q;
+    });
+    setQuestions(updated);
+    setEditingQId(null);
+    saveExamToFirestore(updated, codingQuestions);
+  };
+
+  const handleDeleteQuestion = (idxToDelete) => {
+    const updated = questions.filter((_, i) => i !== idxToDelete);
+    setQuestions(updated);
+    saveExamToFirestore(updated, codingQuestions);
   };
 
   const handleAddCodingQuestion = () => {
@@ -351,7 +482,9 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
     };
     const updated = [...codingQuestions, newQ];
     setCodingQuestions(updated);
-    setActiveTechQIndex(updated.length - 1);
+    const newIdx = updated.length - 1;
+    setActiveTechQIndex(newIdx);
+    saveExamToFirestore(questions, updated);
   };
 
   const handleDeleteCodingQuestion = (indexToDelete) => {
@@ -361,18 +494,20 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
     }
     const updated = codingQuestions.filter((_, idx) => idx !== indexToDelete);
     setCodingQuestions(updated);
-    if (activeTechQIndex >= updated.length) {
-      setActiveTechQIndex(updated.length - 1);
-    }
+    const newIndex = activeTechQIndex >= updated.length ? updated.length - 1 : activeTechQIndex;
+    setActiveTechQIndex(newIndex);
+    saveExamToFirestore(questions, updated);
   };
 
   const handleUpdateCurrentCodingQ = (field, value) => {
-    setCodingQuestions(prev => prev.map((q, idx) => {
+    const updated = codingQuestions.map((q, idx) => {
       if (idx === activeTechQIndex) {
         return { ...q, [field]: value };
       }
       return q;
-    }));
+    });
+    setCodingQuestions(updated);
+    saveExamToFirestore(questions, updated);
   };
 
   const handleAddTestCase = (e) => {
@@ -385,22 +520,26 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
       expectedOutput: newTC.expectedOutput.trim(),
       isHidden: !!newTC.isHidden,
     };
-    setCodingQuestions(prev => prev.map((q, idx) => {
+    const updated = codingQuestions.map((q, idx) => {
       if (idx === activeTechQIndex) {
         return { ...q, testCases: [...(q.testCases || []), tcToAdd] };
       }
       return q;
-    }));
+    });
+    setCodingQuestions(updated);
     setNewTC({ name: '', input: '', expectedOutput: '', isHidden: false });
+    saveExamToFirestore(questions, updated);
   };
 
   const handleDeleteTestCase = (tcIdx) => {
-    setCodingQuestions(prev => prev.map((q, idx) => {
+    const updated = codingQuestions.map((q, idx) => {
       if (idx === activeTechQIndex) {
         return { ...q, testCases: (q.testCases || []).filter((_, i) => i !== tcIdx) };
       }
       return q;
-    }));
+    });
+    setCodingQuestions(updated);
+    saveExamToFirestore(questions, updated);
   };
 
   const handleSaveOfflineScore = async (e) => {
@@ -665,15 +804,15 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
       {activeTab === 'manager' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Status Header Card */}
-          <div className="glass-card" style={{ padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', background: 'rgba(15, 23, 42, 0.7)', border: `1px solid ${examForm.isLive ? 'rgba(16, 185, 129, 0.4)' : 'rgba(51, 65, 85, 0.6)'}` }}>
+          <div className="glass-card" style={{ padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', background: 'rgba(15, 23, 42, 0.7)', border: `1px solid ${examForm.isLive ? 'rgba(16, 185, 129, 0.5)' : 'rgba(51, 65, 85, 0.6)'}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <span style={{ width: 10, height: 10, borderRadius: '50%', background: examForm.isLive ? '#10b981' : '#64748b', boxShadow: examForm.isLive ? '0 0 12px #10b981' : 'none', display: 'inline-block' }} />
               <div>
-                <h4 style={{ color: examForm.isLive ? '#34d399' : '#e2e8f0', fontSize: '0.9rem', fontWeight: 700, margin: 0 }}>
-                  Status: {examForm.isLive ? 'EXAM IS LIVE & PUBLISHED' : 'EXAM PAUSED / HIDDEN'}
+                <h4 style={{ color: examForm.isLive ? '#34d399' : '#e2e8f0', fontSize: '0.9rem', fontWeight: 800, margin: 0 }}>
+                  Status: {examForm.isLive ? `🟢 DRIVE EXAM ALREADY LIVE & IN PROGRESS` : `⏸ EXAM PAUSED / SCHEDULED FOR ${activeDrive?.company?.toUpperCase() || 'DRIVE'}`}
                 </h4>
                 <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.15rem 0 0 0' }}>
-                  {examForm.isLive ? 'Candidates can launch and attempt this proctored test from their dashboard.' : 'Hidden from candidate dashboards.'}
+                  {examForm.isLive ? `Candidate proctored examination is live for ${activeDrive?.company} — ${activeDrive?.role}. Candidates can take this test.` : `Exam is currently hidden from candidate dashboards for ${activeDrive?.company}.`}
                 </p>
               </div>
             </div>
@@ -695,7 +834,7 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
                 className={`btn ${examForm.isLive ? 'btn-secondary' : 'btn-success'}`}
                 style={{ fontWeight: 700, fontSize: '0.8rem', padding: '0.55rem 1.25rem' }}
               >
-                {saving ? 'Updating...' : examForm.isLive ? 'Pause Exam' : 'Publish & Go Live'}
+                {saving ? 'Updating...' : examForm.isLive ? '⏹ End & Unpublish Exam' : '▶ Publish & Start Live Exam'}
               </button>
             </div>
           </div>
@@ -815,30 +954,6 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
                 </svg>
                 Technical Coding Question Pool ({codingQuestions.length} Problems)
               </button>
-
-              <button
-                type="button"
-                onClick={() => setQBuilderSubTab('technical_mcq')}
-                style={{
-                  background: qBuilderSubTab === 'technical_mcq' ? 'rgba(99, 102, 241, 0.28)' : 'transparent',
-                  color: qBuilderSubTab === 'technical_mcq' ? '#c7d2fe' : '#94a3b8',
-                  border: qBuilderSubTab === 'technical_mcq' ? '1px solid rgba(99, 102, 241, 0.5)' : '1px solid transparent',
-                  padding: '0.45rem 0.9rem',
-                  borderRadius: '0.5rem',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  fontSize: '0.75rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <svg style={{ width: 14, height: 14, minWidth: 14 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Technical & Core CS MCQs ({techQuestions.length})
-              </button>
             </div>
 
             {/* SUB-TAB 1: Aptitude MCQs Builder */}
@@ -850,104 +965,251 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
                       No aptitude questions configured yet. Use the form below to add questions.
                     </p>
                   ) : (
-                    questions.map((q, idx) => (
-                      <div
-                        key={q.id || idx}
-                        style={{
-                          background: 'rgba(15, 23, 42, 0.85)',
-                          border: '1px solid rgba(99, 102, 241, 0.35)',
-                          borderRadius: '0.85rem',
-                          padding: '1.1rem',
-                          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.75rem',
-                        }}
-                      >
-                        {/* Header */}
-                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                            <span className="badge badge-primary" style={{ fontWeight: 800, fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>
-                              Q{idx + 1}
-                            </span>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f8fafc' }}>{q.q}</span>
-                          </div>
+                    questions.map((q, idx) => {
+                      const qKey = q.id || idx;
+                      const isEditingThis = editingQId === qKey;
 
-                          <button
-                            type="button"
-                            onClick={() => setQuestions(questions.filter((_, i) => i !== idx))}
+                      if (isEditingThis) {
+                        return (
+                          <form
+                            key={qKey}
+                            onSubmit={(e) => handleSaveEditedQuestion(e, qKey)}
                             style={{
-                              background: 'rgba(244, 63, 94, 0.12)',
-                              border: '1px solid rgba(244, 63, 94, 0.3)',
-                              color: '#fb7185',
-                              padding: '0.35rem 0.5rem',
-                              borderRadius: '0.5rem',
-                              cursor: 'pointer',
+                              background: 'rgba(15, 23, 42, 0.95)',
+                              border: '1px solid rgba(245, 158, 11, 0.6)',
+                              borderRadius: '0.85rem',
+                              padding: '1.25rem',
+                              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4)',
                               display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
+                              flexDirection: 'column',
+                              gap: '0.85rem',
                             }}
-                            title="Delete Question"
                           >
-                            <svg style={{ width: 14, height: 14 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <span className="badge badge-warning" style={{ fontWeight: 800, fontSize: '0.75rem' }}>
+                                ✏️ Editing MCQ Q{idx + 1}
+                              </span>
+                              <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                                Modifying Question Paper Bank
+                              </span>
+                            </div>
 
-                        {/* Options Grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-                          {q.opts.map((opt, oIdx) => {
-                            const isCorrect = oIdx === (q.ans || 0);
-                            return (
-                              <div
-                                key={oIdx}
+                            <div className="grid grid-2" style={{ gap: '0.75rem' }}>
+                              <div className="input-group">
+                                <label style={{ fontSize: '0.75rem' }}>Question Statement *</label>
+                                <input
+                                  className="input-field"
+                                  style={{ background: 'rgba(2, 6, 23, 0.7)', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)' }}
+                                  value={editingQForm.q}
+                                  onChange={e => setEditingQForm({ ...editingQForm, q: e.target.value })}
+                                  required
+                                />
+                              </div>
+                              <div className="input-group">
+                                <label style={{ fontSize: '0.75rem' }}>Topic / Category</label>
+                                <input
+                                  className="input-field"
+                                  style={{ background: 'rgba(2, 6, 23, 0.7)', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)' }}
+                                  value={editingQForm.topic}
+                                  onChange={e => setEditingQForm({ ...editingQForm, topic: e.target.value })}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-2" style={{ gap: '0.75rem' }}>
+                              {editingQForm.opts.map((opt, oIdx) => (
+                                <div key={oIdx} className="input-group">
+                                  <label style={{ fontSize: '0.7rem' }}>Option {String.fromCharCode(65 + oIdx)} *</label>
+                                  <input
+                                    className="input-field"
+                                    style={{ background: 'rgba(2, 6, 23, 0.7)', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)', padding: '0.5rem 0.75rem' }}
+                                    value={opt}
+                                    onChange={e => {
+                                      const updatedOpts = [...editingQForm.opts];
+                                      updatedOpts[oIdx] = e.target.value;
+                                      setEditingQForm({ ...editingQForm, opts: updatedOpts });
+                                    }}
+                                    required
+                                  />
+                                </div>
+                              ))}
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.5rem', borderTop: '1px solid rgba(51, 65, 85, 0.5)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Correct Option:</span>
+                                <select
+                                  className="input-field"
+                                  style={{ width: 'auto', background: '#0f172a', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)', padding: '0.35rem 0.75rem', fontSize: '0.75rem' }}
+                                  value={editingQForm.ans}
+                                  onChange={e => setEditingQForm({ ...editingQForm, ans: parseInt(e.target.value, 10) })}
+                                >
+                                  <option value={0} style={{ background: '#0f172a' }}>Option A</option>
+                                  <option value={1} style={{ background: '#0f172a' }}>Option B</option>
+                                  <option value={2} style={{ background: '#0f172a' }}>Option C</option>
+                                  <option value={3} style={{ background: '#0f172a' }}>Option D</option>
+                                </select>
+                              </div>
+
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <button
+                                  type="button"
+                                  onClick={handleCancelEditQuestion}
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ fontWeight: 600 }}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="submit"
+                                  className="btn btn-warning btn-sm"
+                                  style={{ fontWeight: 700 }}
+                                >
+                                  💾 Save Edits
+                                </button>
+                              </div>
+                            </div>
+                          </form>
+                        );
+                      }
+
+                      return (
+                        <div
+                          key={qKey}
+                          style={{
+                            background: 'rgba(15, 23, 42, 0.85)',
+                            border: '1px solid rgba(99, 102, 241, 0.35)',
+                            borderRadius: '0.85rem',
+                            padding: '1.1rem',
+                            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.75rem',
+                          }}
+                        >
+                          {/* Header */}
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                              <span className="badge badge-warning" style={{ fontWeight: 800, fontSize: '0.7rem' }}>
+                                {q.topic ? `${q.topic} Q${idx + 1}` : `Q${idx + 1}`}
+                              </span>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f8fafc' }}>{q.q}</span>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditQuestion(q, idx)}
                                 style={{
-                                  background: isCorrect ? 'rgba(16, 185, 129, 0.15)' : 'rgba(30, 41, 59, 0.6)',
-                                  border: isCorrect ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid rgba(51, 65, 85, 0.6)',
-                                  color: isCorrect ? '#6ee7b7' : '#cbd5e1',
-                                  padding: '0.5rem 0.75rem',
-                                  borderRadius: '0.6rem',
-                                  fontSize: '0.75rem',
-                                  fontWeight: isCorrect ? 600 : 500,
+                                  background: 'rgba(245, 158, 11, 0.12)',
+                                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                                  color: '#fbbf24',
+                                  padding: '0.35rem 0.55rem',
+                                  borderRadius: '0.5rem',
+                                  cursor: 'pointer',
                                   display: 'flex',
                                   alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  boxShadow: isCorrect ? '0 0 12px rgba(16, 185, 129, 0.15)' : 'none',
+                                  gap: '0.25rem',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 600,
                                 }}
+                                title="Edit Question Statement & Options"
                               >
-                                <span>
-                                  <strong style={{ color: isCorrect ? '#34d399' : '#94a3b8', marginRight: '0.35rem' }}>{String.fromCharCode(65 + oIdx)}:</strong>
-                                  {opt}
-                                </span>
-                                {isCorrect && (
-                                  <svg style={{ width: 14, height: 14, minWidth: 14 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" color="#34d399">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                )}
-                              </div>
-                            );
-                          })}
+                                <svg style={{ width: 13, height: 13 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Edit
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteQuestion(idx)}
+                                style={{
+                                  background: 'rgba(244, 63, 94, 0.12)',
+                                  border: '1px solid rgba(244, 63, 94, 0.3)',
+                                  color: '#fb7185',
+                                  padding: '0.35rem 0.5rem',
+                                  borderRadius: '0.5rem',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
+                                }}
+                                title="Delete Question"
+                              >
+                                <svg style={{ width: 14, height: 14 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Options Grid */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
+                            {q.opts.map((opt, oIdx) => {
+                              const isCorrect = oIdx === (q.ans || 0);
+                              return (
+                                <div
+                                  key={oIdx}
+                                  style={{
+                                    background: isCorrect ? 'rgba(16, 185, 129, 0.15)' : 'rgba(30, 41, 59, 0.6)',
+                                    border: isCorrect ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid rgba(51, 65, 85, 0.6)',
+                                    color: isCorrect ? '#6ee7b7' : '#cbd5e1',
+                                    padding: '0.5rem 0.75rem',
+                                    borderRadius: '0.6rem',
+                                    fontSize: '0.75rem',
+                                    fontWeight: isCorrect ? 600 : 500,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    boxShadow: isCorrect ? '0 0 12px rgba(16, 185, 129, 0.15)' : 'none',
+                                  }}
+                                >
+                                  <span>
+                                    <strong style={{ color: isCorrect ? '#34d399' : '#94a3b8', marginRight: '0.35rem' }}>{String.fromCharCode(65 + oIdx)}:</strong>
+                                    {opt}
+                                  </span>
+                                  {isCorrect && (
+                                    <svg style={{ width: 14, height: 14, minWidth: 14 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" color="#34d399">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
 
                 {/* Add Question Elevated Form */}
                 <form onSubmit={handleAddQuestion} style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid rgba(51, 65, 85, 0.7)', padding: '1.25rem', borderRadius: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  <h4 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#e2e8f0', margin: 0 }}>Add New Aptitude Question</h4>
+                  <h4 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#e2e8f0', margin: 0 }}>Add New Aptitude / Technical MCQ</h4>
 
-                  <div className="input-group">
-                    <label style={{ fontSize: '0.75rem' }}>Question Statement *</label>
-                    <input
-                      className="input-field"
-                      style={{ background: 'rgba(2, 6, 23, 0.7)', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)' }}
-                      placeholder="Enter question statement (e.g. A train 240m long passes a pole...)"
-                      value={newQText}
-                      onChange={e => setNewQText(e.target.value)}
-                      required
-                    />
+                  <div className="grid grid-2" style={{ gap: '0.75rem' }}>
+                    <div className="input-group">
+                      <label style={{ fontSize: '0.75rem' }}>Question Statement *</label>
+                      <input
+                        className="input-field"
+                        style={{ background: 'rgba(2, 6, 23, 0.7)', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)' }}
+                        placeholder="e.g. What is the time complexity of QuickSort?"
+                        value={newQText}
+                        onChange={e => setNewQText(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="input-group">
+                      <label style={{ fontSize: '0.75rem' }}>Topic / Category</label>
+                      <input
+                        className="input-field"
+                        style={{ background: 'rgba(2, 6, 23, 0.7)', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)' }}
+                        placeholder="e.g. Aptitude, Data Structures, Algorithms"
+                        value={newQTopic}
+                        onChange={e => setNewQTopic(e.target.value)}
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-2" style={{ gap: '0.75rem' }}>
@@ -987,7 +1249,7 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
                     </div>
 
                     <button type="submit" className="btn btn-primary btn-sm" style={{ fontWeight: 700 }}>
-                      + Add Aptitude Question
+                      + Add MCQ Question
                     </button>
                   </div>
                 </form>
@@ -997,7 +1259,7 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
             {/* SUB-TAB 2: Technical Coding Question Bank & Test Cases */}
             {qBuilderSubTab === 'technical_coding' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                
+
                 {/* Question Pool Carousel Header & Selector */}
                 <div style={{ background: '#070c18', border: '1px solid rgba(99, 102, 241, 0.4)', borderRadius: '0.85rem', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -1222,7 +1484,7 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
                 {/* Add Test Case Form */}
                 <form onSubmit={handleAddTestCase} style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid rgba(51, 65, 85, 0.7)', padding: '1.25rem', borderRadius: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                   <h4 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#e2e8f0', margin: 0 }}>Add Technical Test Case to Problem #{activeTechQIndex + 1}</h4>
-                  
+
                   <div className="input-group">
                     <label style={{ fontSize: '0.75rem' }}>Test Case Name / Description</label>
                     <input
@@ -1277,165 +1539,7 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
               </div>
             )}
 
-            {/* SUB-TAB 3: Technical & Core CS MCQs */}
-            {qBuilderSubTab === 'technical_mcq' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  {techQuestions.length === 0 ? (
-                    <p style={{ fontSize: '0.75rem', color: '#64748b', fontStyle: 'italic', padding: '1.5rem', textAlign: 'center', border: '1px dashed rgba(51, 65, 85, 0.6)', borderRadius: '0.75rem' }}>
-                      No technical MCQs added yet.
-                    </p>
-                  ) : (
-                    techQuestions.map((q, idx) => (
-                      <div
-                        key={q.id || idx}
-                        style={{
-                          background: 'rgba(15, 23, 42, 0.85)',
-                          border: '1px solid rgba(245, 158, 11, 0.35)',
-                          borderRadius: '0.85rem',
-                          padding: '1.1rem',
-                          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.75rem',
-                        }}
-                      >
-                        {/* Header */}
-                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                            <span className="badge badge-warning" style={{ fontWeight: 800, fontSize: '0.7rem' }}>
-                              {q.topic || 'Tech'} Q{idx + 1}
-                            </span>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f8fafc' }}>{q.q}</span>
-                          </div>
 
-                          <button
-                            type="button"
-                            onClick={() => setTechQuestions(techQuestions.filter((_, i) => i !== idx))}
-                            style={{
-                              background: 'rgba(244, 63, 94, 0.12)',
-                              border: '1px solid rgba(244, 63, 94, 0.3)',
-                              color: '#fb7185',
-                              padding: '0.35rem 0.5rem',
-                              borderRadius: '0.5rem',
-                              cursor: 'pointer',
-                            }}
-                            title="Delete Question"
-                          >
-                            <svg style={{ width: 14, height: 14 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-
-                        {/* Options Grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.6rem' }}>
-                          {q.opts.map((opt, oIdx) => {
-                            const isCorrect = oIdx === (q.ans || 0);
-                            return (
-                              <div
-                                key={oIdx}
-                                style={{
-                                  background: isCorrect ? 'rgba(16, 185, 129, 0.15)' : 'rgba(30, 41, 59, 0.6)',
-                                  border: isCorrect ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid rgba(51, 65, 85, 0.6)',
-                                  color: isCorrect ? '#6ee7b7' : '#cbd5e1',
-                                  padding: '0.5rem 0.75rem',
-                                  borderRadius: '0.6rem',
-                                  fontSize: '0.75rem',
-                                  fontWeight: isCorrect ? 600 : 500,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  boxShadow: isCorrect ? '0 0 12px rgba(16, 185, 129, 0.15)' : 'none',
-                                }}
-                              >
-                                <span>
-                                  <strong style={{ color: isCorrect ? '#34d399' : '#94a3b8', marginRight: '0.35rem' }}>{String.fromCharCode(65 + oIdx)}:</strong>
-                                  {opt}
-                                </span>
-                                {isCorrect && (
-                                  <svg style={{ width: 14, height: 14, minWidth: 14 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" color="#34d399">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                <form onSubmit={handleAddTechQuestion} style={{ background: 'rgba(15, 23, 42, 0.7)', border: '1px solid rgba(51, 65, 85, 0.7)', padding: '1.25rem', borderRadius: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  <h4 style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#e2e8f0', margin: 0 }}>Add New Technical MCQ</h4>
-                  <div className="grid grid-2" style={{ gap: '0.75rem' }}>
-                    <div className="input-group">
-                      <label style={{ fontSize: '0.75rem' }}>Question Statement *</label>
-                      <input
-                        className="input-field"
-                        style={{ background: 'rgba(2, 6, 23, 0.7)', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)' }}
-                        placeholder="e.g. What is the time complexity of QuickSort?"
-                        value={newTechQText}
-                        onChange={e => setNewTechQText(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="input-group">
-                      <label style={{ fontSize: '0.75rem' }}>Topic / Category</label>
-                      <input
-                        className="input-field"
-                        style={{ background: 'rgba(2, 6, 23, 0.7)', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)' }}
-                        placeholder="e.g. Data Structures, DBMS, OS"
-                        value={newTechTopic}
-                        onChange={e => setNewTechTopic(e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-2" style={{ gap: '0.75rem' }}>
-                    {newTechOpts.map((opt, i) => (
-                      <div key={i} className="input-group">
-                        <label style={{ fontSize: '0.7rem' }}>Option {String.fromCharCode(65 + i)} *</label>
-                        <input
-                          className="input-field"
-                          style={{ background: 'rgba(2, 6, 23, 0.7)', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)', padding: '0.5rem 0.75rem' }}
-                          placeholder={`Option ${String.fromCharCode(65 + i)}`}
-                          value={opt}
-                          onChange={e => {
-                            const updated = [...newTechOpts];
-                            updated[i] = e.target.value;
-                            setNewTechOpts(updated);
-                          }}
-                          required
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.5rem', borderTop: '1px solid rgba(51, 65, 85, 0.5)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>Correct Option:</span>
-                      <select
-                        className="input-field"
-                        style={{ width: 'auto', background: '#0f172a', color: '#f8fafc', border: '1px solid rgba(51, 65, 85, 0.8)', padding: '0.35rem 0.75rem', fontSize: '0.75rem' }}
-                        value={newTechAnsIndex}
-                        onChange={e => setNewTechAnsIndex(parseInt(e.target.value, 10))}
-                      >
-                        <option value={0} style={{ background: '#0f172a' }}>Option A</option>
-                        <option value={1} style={{ background: '#0f172a' }}>Option B</option>
-                        <option value={2} style={{ background: '#0f172a' }}>Option C</option>
-                        <option value={3} style={{ background: '#0f172a' }}>Option D</option>
-                      </select>
-                    </div>
-
-                    <button type="submit" className="btn btn-warning btn-sm" style={{ fontWeight: 700 }}>
-                      + Add Technical MCQ
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -1655,7 +1759,7 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
                     const passedStr = r.testCasesPassed !== undefined ? `${r.testCasesPassed} / ${r.totalTestCases || 3} Passed` : '0 / 3 Passed';
                     const isDisqualified = (r.status || '').includes('DISQUALIFIED') || !!r.disqualificationReason;
                     const isPass = !isDisqualified && (r.status === 'PASSED' || (r.testCasesPassed && r.testCasesPassed === (r.totalTestCases || 3)));
-                    
+
                     return (
                       <tr key={r.id}>
                         <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{r.rollNo}</td>
@@ -1872,6 +1976,78 @@ export default function LiveExamManager({ userRole = 'tpo', initialTab = 'manage
             </div>
           )}
         </div>
+      )}
+
+      {/* End & Unpublish Confirmation Modal (Portaled to document.body for exact viewport centering) */}
+      {showUnpublishModal && createPortal(
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(2, 6, 23, 0.85)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 27, 75, 0.95) 100%)',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            borderRadius: '1.25rem',
+            padding: '1.75rem',
+            maxWidth: '480px',
+            width: '100%',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.25rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg style={{ width: 24, height: 24 }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#ffffff', margin: 0 }}>End & Unpublish Live Exam?</h3>
+                <p style={{ fontSize: '0.75rem', color: '#f87171', margin: '0.2rem 0 0 0', fontWeight: 600 }}>Action will pause candidate access immediately</p>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.825rem', color: '#cbd5e1', lineHeight: 1.5, margin: 0, background: 'rgba(2, 6, 23, 0.5)', padding: '0.85rem', borderRadius: '0.75rem', border: '1px solid rgba(51, 65, 85, 0.5)' }}>
+              Are you sure you really want to end and unpublish the live examination for <strong style={{ color: '#60a5fa' }}>{drives.find(d => d.id === selectedDriveId)?.company || 'this drive'}</strong>?
+              <br/><br/>
+              Students currently taking or attempting to enter this specific drive's exam will no longer be able to submit new responses until you publish it live again.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowUnpublishModal(false)}
+                style={{ background: 'rgba(30, 41, 59, 0.8)', color: '#cbd5e1', border: '1px solid rgba(71, 85, 105, 0.6)', padding: '0.55rem 1.1rem', borderRadius: '0.65rem', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleConfirmUnpublish}
+                style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: '#ffffff', border: 'none', padding: '0.55rem 1.25rem', borderRadius: '0.65rem', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)' }}
+              >
+                Yes, End & Unpublish Exam
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

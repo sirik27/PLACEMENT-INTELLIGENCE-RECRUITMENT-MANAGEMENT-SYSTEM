@@ -6,12 +6,6 @@ import { useAntiMalpractice } from '../../hooks/useAntiMalpractice';
 import { useServerTimer } from '../../hooks/useServerTimer';
 import ExamWarningModal from '../../components/ExamWarningModal';
 
-const DEFAULT_QUESTIONS = [
-  { id: 1, q: 'A train 240 m long passes a pole in 24 seconds. How long will it take to pass a platform 650 m long?', opts: ['65 sec', '89 sec', '100 sec', '150 sec'], ans: 1 },
-  { id: 2, q: 'If LOGIC is coded as BHODK, how is CLERK coded?', opts: ['FMDQJ', 'JQDMF', 'EKQBJ', 'QJMFD'], ans: 0 },
-  { id: 3, q: 'Find the odd one out: 35, 49, 63, 77, 85, 91', opts: ['49', '85', '91', '77'], ans: 1 },
-];
-
 export default function ExamAptitude() {
   const nav = useNavigate();
   const location = useLocation();
@@ -22,7 +16,7 @@ export default function ExamAptitude() {
   const [cur, setCur] = useState(0);
   const [answers, setAnswers] = useState({});
   const [done, setDone] = useState(false);
-  const [questions, setQuestions] = useState(DEFAULT_QUESTIONS);
+  const [questions, setQuestions] = useState([]);
   const [duration, setDuration] = useState(30);
 
   // Submit Declaration Modal State
@@ -40,11 +34,20 @@ export default function ExamAptitude() {
         if (snap.exists()) {
           const data = snap.data();
           setExamData(data);
-          if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
-            setQuestions(data.questions);
+          let loadedQs = [];
+          if (data.questions && Array.isArray(data.questions)) {
+            loadedQs = [...data.questions];
           }
-          if (data.durationMinutes) {
-            setDuration(data.durationMinutes);
+          if (data.techQuestions && Array.isArray(data.techQuestions)) {
+            data.techQuestions.forEach(tq => {
+              if (!loadedQs.some(q => q.q === tq.q)) {
+                loadedQs.push({ ...tq, topic: tq.topic || 'Technical' });
+              }
+            });
+          }
+          setQuestions(loadedQs);
+          if (data.durationMinutes || data.aptitudeDurationMinutes) {
+            setDuration(data.aptitudeDurationMinutes || data.durationMinutes || 30);
           }
         }
       } catch (err) {
@@ -83,13 +86,13 @@ export default function ExamAptitude() {
     setSubmitting(true);
     setDone(true);
 
-    const activeQs = (questions && questions.length > 0) ? questions : DEFAULT_QUESTIONS;
+    const activeQs = questions || [];
     let correctCount = 0;
     activeQs.forEach((q, idx) => {
       if (answers[idx] === q.ans) correctCount++;
     });
 
-    const scorePct = Math.round((correctCount / activeQs.length) * 100);
+    const scorePct = activeQs.length > 0 ? Math.round((correctCount / activeQs.length) * 100) : 0;
     const passCutoff = examData?.passMark || 60;
     const isPass = scorePct >= passCutoff;
 
@@ -123,9 +126,21 @@ export default function ExamAptitude() {
     nav('/student');
   };
 
-  const activeQuestions = (questions && questions.length > 0) ? questions : DEFAULT_QUESTIONS;
+  const activeQuestions = questions || [];
   const q = activeQuestions[cur] || activeQuestions[0];
   const answeredCount = Object.keys(answers).length;
+
+  if (!questions || questions.length === 0) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#070c18', color: '#f8fafc', padding: '2rem' }}>
+        <div className="glass-card p-8 text-center max-w-xl mx-auto" style={{ background: 'rgba(15, 23, 42, 0.8)', borderRadius: '1.1rem' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#f8fafc', marginBottom: '0.5rem' }}>No Aptitude MCQs Configured</h3>
+          <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '1.5rem' }}>The TPO has not added questions to the database for this drive assessment yet.</p>
+          <button type="button" onClick={() => nav('/student')} className="btn btn-primary">Return to Dashboard</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#070c18', color: '#f8fafc', padding: '1.5rem 1rem' }} id="exam-aptitude">
