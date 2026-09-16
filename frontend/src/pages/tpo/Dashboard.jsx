@@ -122,7 +122,7 @@ export default function TPODashboard() {
 
   const statCards = [
     {
-      label: 'Total Cohort',
+      label: 'Total Students',
       value: stats.total,
       color: 'var(--primary-400)',
       icon: (
@@ -167,7 +167,7 @@ export default function TPODashboard() {
     { to: '/tpo/exams', title: 'Live Exam Control', desc: 'Set questions, duration & publish live proctored exams', color: 'var(--primary-500)', bg: 'rgba(99, 102, 241, 0.08)' },
     { to: '/tpo/exam-results', title: 'Exam Evaluation & CSV', desc: 'Inspect student test scores and export reports', color: 'var(--success-500)', bg: 'rgba(16, 185, 129, 0.08)' },
     { to: '/tpo/interviews', title: 'Round 3 Interviews', desc: 'Schedule 1-on-1 AI proctored interview rooms', color: 'var(--warning-500)', bg: 'rgba(245, 158, 11, 0.08)' },
-    { to: '/tpo/students', title: 'Student Roster', desc: 'Manage cohort records and monitor readiness', color: 'var(--accent-500)', bg: 'rgba(14, 165, 233, 0.08)' },
+    { to: '/tpo/students', title: 'Student Directory', desc: 'Manage student directory records and CRUD operations', color: 'var(--accent-500)', bg: 'rgba(14, 165, 233, 0.08)' },
   ];
 
   return (
